@@ -547,6 +547,7 @@ export default function App() {
 
       <footer className="foot">
         <p>No real names here, ever. Be kind — the person you're reading could be sitting next to you in the library.</p>
+        <p>Made by a BU student, for the students of Bundelkhand University, Jhansi. Not affiliated with the university.</p>
         <p className="foot-links">
           <button onClick={() => setView("privacy")}>Privacy</button>
           <span>·</span>
@@ -701,7 +702,7 @@ function Feed({ me, posts, sort, setSort, online, reload, openPost, talkPrivatel
 
   return (
     <>
-      <p className="eyebrow">The campus wall · no names, no judgement</p>
+      <p className="eyebrow">The BU Jhansi wall · no names, no judgement</p>
       <h1><span className="grey">Same campus</span>Everything unsaid</h1>
       <p className="sub">
         Confess it, rant it, ask it. Here you're <b>{me.handle}</b> — a name
