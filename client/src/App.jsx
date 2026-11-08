@@ -688,6 +688,25 @@ function LoginModal({ close, done, flash }) {
 }
 
 function Feed({ me, posts, sort, setSort, online, reload, openPost, talkPrivately, flash }) {
+  // Pixelizt-style scroll reveal: cards sit blurred until they scroll
+  // into view, then sharpen — once each, never again
+  useEffect(() => {
+    const cards = document.querySelectorAll(".post.reveal:not(.in)");
+    if (!("IntersectionObserver" in window)) {
+      cards.forEach((c) => c.classList.add("in"));
+      return;
+    }
+    const watch = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add("in");
+          watch.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.06 });
+    cards.forEach((c) => watch.observe(c));
+    return () => watch.disconnect();
+  }, [posts]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -747,7 +766,7 @@ function PostCard({ post, me, index, openPost, talkPrivately, flash }) {
     api.report(post.id).then(() => flash("Reported. Three reports and it's gone.")).catch(() => {});
 
   return (
-    <article className="card post rise" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
+    <article className="card post reveal" style={{ transitionDelay: `${Math.min(index, 6) * 45}ms` }}>
       <div className="post-head">
         <Handle handle={post.handle} color={post.color} />
         <span className="time">{timeAgo(post.createdAt)}</span>
