@@ -55,4 +55,10 @@ export const api = {
   actOnRequest: (id, action) => call(`/api/requests/${id}/${action}`, { method: "POST" }),
   threads: () => call("/api/threads").then((d) => d.threads),
   messages: (userId) => call(`/api/threads/${userId}/messages`),
+  notifications: () => call("/api/notifications"),
+  markRead: (body) => call("/api/notifications/read", { method: "POST", body: JSON.stringify(body) }),
+  pushKey: () => call("/api/push/key").then((d) => d.publicKey),
+  pushSubscribe: (sub) => call("/api/push/subscribe", { method: "POST", body: JSON.stringify(sub) }),
+  pushUnsubscribe: (endpoint) =>
+    call("/api/push/unsubscribe", { method: "POST", body: JSON.stringify({ endpoint }) }),
 };
