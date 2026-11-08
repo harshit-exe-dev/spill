@@ -53,6 +53,83 @@ function Handle({ handle, color }) {
   );
 }
 
+// ---------- notifications ----------
+
+function noteIcon(n) {
+  if (n.type === "reply") return "💬";
+  if (n.type === "request") return "👀";
+  if (n.type === "accepted") return "💚";
+  if (n.type === "message") return "✉️";
+  if (n.type === "reaction") return n.emoji || "❤️";
+  return "🔔";
+}
+
+function noteVerb(n) {
+  if (n.type === "reply") return "replied to your spill";
+  if (n.type === "request") return "wants to talk privately";
+  if (n.type === "accepted") return "said yes — your chat is open";
+  if (n.type === "message") return "sent you a message";
+  if (n.type === "reaction") return "reacted to your spill";
+  return "did something";
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+function NotesPanel({ notes, pushState, enablePush, disablePush, goNote, close }) {
+  return (
+    <div className="modal-wrap" onClick={close}>
+      <div className="modal card sheet notes-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head">
+          <div>
+            <div className="sheet-name">Notifications</div>
+            <div className="sheet-sub">everything that happened while you were gone</div>
+          </div>
+        </div>
+
+        {pushState === "off" && (
+          <button className="sheet-row" onClick={enablePush}>
+            <span>🔔 Ping this device too — even with the tab closed</span><span className="sheet-arrow">→</span>
+          </button>
+        )}
+        {pushState === "on" && (
+          <button className="sheet-row" onClick={disablePush}>
+            <span>✅ Device pings are on</span><span className="sheet-arrow">turn off</span>
+          </button>
+        )}
+        {pushState === "blocked" && (
+          <p className="sheet-note">Device pings are blocked in this browser's settings — the bell still catches everything.</p>
+        )}
+
+        {notes.map((n) => (
+          <button key={n.id} className={`note-row ${n.read ? "" : "unread"}`} onClick={() => goNote(n)}>
+            <span className="note-icon">{noteIcon(n)}</span>
+            <span className="note-main">
+              <span className="note-line">
+                {n.actorHandle && <span className="dot" style={{ background: n.actorColor || "#999" }} />}
+                <b>{n.actorHandle || "Someone"}</b>&nbsp;{noteVerb(n)}
+                {!n.read && <span className="note-dot" />}
+              </span>
+              {n.text && n.type !== "accepted" && <span className="note-preview">{n.text}</span>}
+            </span>
+            <span className="time">{timeAgo(n.createdAt)}</span>
+          </button>
+        ))}
+        {notes.length === 0 && (
+          <p className="empty">All quiet. No replies, no requests — yet.</p>
+        )}
+        <button className="act ghost center" onClick={close}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [me, setMe] = useState(null);
   const [view, setView] = useState("feed"); // feed | post | chats | chat
@@ -69,27 +146,67 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [online, setOnline] = useState(0);
   const [loggedOut, setLoggedOut] = useState(() => localStorage.getItem("spill-out") === "1");
+  const [notes, setNotes] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [showNotes, setShowNotes] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [pushState, setPushState] = useState("unknown"); // unknown | off | on | blocked | unsupported
   const socketRef = useRef(null);
+  const openChatRef = useRef(null); // user id of the chat on screen, if any
 
   const flash = (msg) => {
     setNotice(msg);
     setTimeout(() => setNotice(""), 3200);
   };
 
+  const pushToast = (note) => {
+    setToasts((t) => [...t.slice(-2), note]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== note.id)), 5200);
+  };
+
   const loadFeed = () => api.feed(sort).then(setPosts).catch(() => {});
   const loadIncoming = () => api.incoming().then(setIncoming).catch(() => {});
   const loadThreads = () => api.threads().then(setThreads).catch(() => {});
+
+  const refreshPushState = async () => {
+    if (!("PushManager" in window) || !("serviceWorker" in navigator) || !("Notification" in window)) {
+      setPushState("unsupported");
+      return;
+    }
+    if (Notification.permission === "denied") { setPushState("blocked"); return; }
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && (await reg.pushManager.getSubscription());
+      setPushState(sub ? "on" : "off");
+    } catch (e) { setPushState("off"); }
+  };
 
   const boot = () => {
     api.me().then(({ user, phrase }) => {
       setMe(user);
       if (phrase) setNewPhrase(phrase);
+      api.notifications().then((d) => { setNotes(d.notifications); setUnread(d.unread); }).catch(() => {});
+      refreshPushState();
       const socket = io(API_URL);
       socketRef.current = socket;
       socket.on("connect", () => socket.emit("identify", getToken()));
       socket.on("presence", (d) => setOnline(d.online || 0));
-      socket.on("request:new", () => { loadIncoming(); flash("Someone wants to talk privately 👀"); });
-      socket.on("request:accepted", () => { loadThreads(); flash("They said yes!! Your chat is open"); });
+      socket.on("request:new", () => loadIncoming());
+      socket.on("request:accepted", () => loadThreads());
+      socket.on("notification:new", (note) => {
+        // already staring at this chat? then it's read the second it lands
+        if (note.type === "message" && openChatRef.current === note.withUserId) {
+          api.markRead({ ids: [note.id] }).catch(() => {});
+          setNotes((list) => [{ ...note, read: true },
+            ...list.filter((x) => x.id !== note.id)].slice(0, 40));
+          return;
+        }
+        setNotes((list) => [note, ...list.filter((x) => x.id !== note.id)].slice(0, 40));
+        setUnread((n) => n + 1);
+        pushToast(note);
+        if (note.type === "request") loadIncoming();
+        if (note.type === "accepted") loadThreads();
+      });
       socket.on("dm:new", (msg) => {
         setChatWith((current) => {
           if (current && (msg.fromId === current.with.id || msg.fromId === user.id)) {
@@ -123,6 +240,63 @@ export default function App() {
 
   useEffect(() => { if (me) loadFeed(); }, [me, sort]);
   useEffect(() => { if (me && view === "chats") { loadIncoming(); loadThreads(); } }, [me, view]);
+  useEffect(() => {
+    openChatRef.current = view === "chat" && chatWith ? chatWith.with.id : null;
+  }, [view, chatWith]);
+
+  const openNotes = () => {
+    setShowNotes(true);
+    if (unread > 0) {
+      api.markRead({ all: true }).catch(() => {});
+      setUnread(0);
+      setNotes((list) => list.map((n) => ({ ...n, read: true })));
+    }
+  };
+
+  const goNote = (note) => {
+    setShowNotes(false);
+    setToasts((t) => t.filter((x) => x.id !== note.id));
+    if (!note.read) {
+      api.markRead({ ids: [note.id] }).catch(() => {});
+      setUnread((n) => Math.max(0, n - 1));
+      setNotes((list) => list.map((x) => (x.id === note.id ? { ...x, read: true } : x)));
+    }
+    if ((note.type === "reply" || note.type === "reaction") && note.postId) openPostView(note.postId);
+    else if (note.type === "request") { setView("chats"); loadIncoming(); loadThreads(); }
+    else if ((note.type === "accepted" || note.type === "message") && note.withUserId) openChat(note.withUserId);
+  };
+
+  const enablePush = async () => {
+    try {
+      const key = await api.pushKey();
+      if (!key) { flash("Push isn't switched on at the server yet"); return; }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") { setPushState("blocked"); flash("Notifications are blocked in the browser settings"); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key),
+      });
+      await api.pushSubscribe(sub.toJSON());
+      setPushState("on");
+      flash("Device notifications on — we'll ping you here too");
+    } catch (e) {
+      flash("Couldn't turn push on in this browser");
+    }
+  };
+
+  const disablePush = async () => {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && (await reg.pushManager.getSubscription());
+      if (sub) {
+        await api.pushUnsubscribe(sub.endpoint).catch(() => {});
+        await sub.unsubscribe();
+      }
+      setPushState("off");
+      flash("Device notifications off. The bell still keeps everything.");
+    } catch (e) { /* already off, effectively */ setPushState("off"); }
+  };
 
   if (loggedOut && !me) {
     return (
@@ -176,6 +350,9 @@ export default function App() {
       <div className="nav">
         <button className="logo" onClick={() => setView("feed")}>spill<span className="dot-inline">.</span></button>
         <div className="nav-right">
+          <button className="bell" title="Notifications" onClick={openNotes}>
+            🔔{unread > 0 && <span className="badge bell-badge">{unread}</span>}
+          </button>
           <button className={`nav-link ${view === "chats" || view === "chat" ? "active" : ""}`} onClick={() => setView("chats")}>
             Chats{incoming.length > 0 && <span className="badge">{incoming.length}</span>}
           </button>
@@ -187,6 +364,28 @@ export default function App() {
       </div>
 
       {notice && <div className="notice">{notice}</div>}
+
+      {toasts.length > 0 && (
+        <div className="toast-stack">
+          {toasts.map((n) => (
+            <button key={n.id} className="toast" onClick={() => goNote(n)}>
+              <span className="toast-icon">{noteIcon(n)}</span>
+              <span className="toast-text"><b>{n.actorHandle || "Someone"}</b> {noteVerb(n)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showNotes && (
+        <NotesPanel
+          notes={notes}
+          pushState={pushState}
+          enablePush={enablePush}
+          disablePush={disablePush}
+          goNote={goNote}
+          close={() => setShowNotes(false)}
+        />
+      )}
 
       {newPhrase && (
         <div className="modal-wrap">
