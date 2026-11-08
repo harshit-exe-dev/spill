@@ -68,17 +68,84 @@ function publicUser(u) {
 
 // ---------- identity ----------
 
+// ~160 everyday words; five of them in a row is a phrase nobody can
+// guess (and the recover endpoint rate-limits anyone who tries).
+const PHRASE_WORDS = (
+  "apple river tiger cloud mango stone paper bridge garden window market " +
+  "coffee silver golden happy quiet brave lemon pepper rocket forest " +
+  "ocean desert island valley meadow harbor lantern velvet copper marble " +
+  "sunny rainy windy snowy misty amber coral ivory jade pearl ruby " +
+  "panda tiger zebra koala otter heron falcon badger lynx wolf deer " +
+  "table chair shelf door lamp clock mirror basket kettle pillow blanket " +
+  "guitar violin trumpet drum piano flute song dance story poem novel " +
+  "north south east west hill lake pond beach cliff cave dune reef " +
+  "morning evening night dawn dusk spring summer autumn winter monsoon " +
+  "bread butter honey milk cheese rice wheat corn potato tomato onion " +
+  "shirt pocket button collar sleeve cotton denim leather canvas wool " +
+  "king queen knight castle village town city street road path trail " +
+  "star moon comet comet orbit planet galaxy comet meteor comet"
+).split(/\s+/).filter((w, i, a) => a.indexOf(w) === i);
+
+function randomPhrase() {
+  const words = [];
+  while (words.length < 5) {
+    const w = PHRASE_WORDS[Math.floor(Math.random() * PHRASE_WORDS.length)];
+    if (!words.includes(w)) words.push(w);
+  }
+  return words.join(" ");
+}
+
+function phraseHash(phrase) {
+  const normalized = String(phrase || "").toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  return crypto.createHash("sha256").update(normalized).digest("hex");
+}
+
 router.post("/me", async (req, res) => {
   const given = clean(req.body && req.body.token);
   if (given) {
     const existing = await User.findOne({ token: given });
-    if (existing) return res.json({ user: publicUser(existing), token: existing.token });
+    if (existing) {
+      // accounts born before login phrases existed get theirs now, once
+      if (!existing.recoveryHash) {
+        const phrase = randomPhrase();
+        existing.recoveryHash = phraseHash(phrase);
+        await existing.save();
+        return res.json({ user: publicUser(existing), token: existing.token, phrase });
+      }
+      return res.json({ user: publicUser(existing), token: existing.token });
+    }
   }
+  const phrase = randomPhrase();
   const user = await User.create({
     token: crypto.randomBytes(24).toString("hex"),
     handle: randomHandle(),
     color: randomColor(),
+    recoveryHash: phraseHash(phrase),
   });
+  // the phrase is returned exactly once — at account creation
+  res.json({ user: publicUser(user), token: user.token, phrase });
+});
+
+// Recover an account on a new device with its login phrase.
+// Attempts are counted per IP; ten misses and you wait ten minutes.
+const recoverAttempts = new Map(); // ip -> { count, firstAt }
+
+router.post("/me/recover", async (req, res) => {
+  const ip = req.ip || "unknown";
+  const now = Date.now();
+  const entry = recoverAttempts.get(ip) || { count: 0, firstAt: now };
+  if (now - entry.firstAt > 10 * 60 * 1000) { entry.count = 0; entry.firstAt = now; }
+  if (entry.count >= 10) {
+    return res.status(429).json({ error: "too many tries — wait ten minutes" });
+  }
+  entry.count += 1;
+  recoverAttempts.set(ip, entry);
+
+  const phrase = clean(req.body && req.body.phrase);
+  if (!phrase) return res.status(400).json({ error: "type your login phrase" });
+  const user = await User.findOne({ recoveryHash: phraseHash(phrase) });
+  if (!user) return res.status(404).json({ error: "that phrase doesn't match any name here — check the words and try again" });
+  recoverAttempts.delete(ip);
   res.json({ user: publicUser(user), token: user.token });
 });
 
