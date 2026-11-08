@@ -58,10 +58,43 @@ const messageSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// The bell. One row per thing worth coming back for: a reply to your
+// spill, a talk request, a yes, a new message, a reaction. The actor's
+// handle is snapshotted so the line still reads right if they re-roll.
+const notificationSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  type: {
+    type: String,
+    enum: ["reply", "request", "accepted", "message", "reaction"],
+    required: true,
+  },
+  actorHandle: { type: String, trim: true, maxlength: 30 },
+  actorColor: { type: String },
+  post: { type: mongoose.Schema.Types.ObjectId, ref: "Post" },
+  withUser: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // chat partner, for message/accepted
+  emoji: { type: String, maxlength: 8 }, // reaction kind, when type is "reaction"
+  text: { type: String, trim: true, maxlength: 140 }, // short preview of the thing itself
+  read: { type: Boolean, default: false, index: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
+// Browser push subscriptions. Tied to the account, not an email or a
+// phone — the endpoint is just "this browser, for this name". Dead
+// endpoints (410/404 from the push service) get pruned on send.
+const pushSubscriptionSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  endpoint: { type: String, required: true, unique: true },
+  p256dh: { type: String, required: true },
+  auth: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
 module.exports = {
   User: mongoose.model("User", userSchema),
   Post: mongoose.model("Post", postSchema),
   Reply: mongoose.model("Reply", replySchema),
   ChatRequest: mongoose.model("ChatRequest", chatRequestSchema),
   Message: mongoose.model("Message", messageSchema),
+  Notification: mongoose.model("Notification", notificationSchema),
+  PushSubscription: mongoose.model("PushSubscription", pushSubscriptionSchema),
 };
