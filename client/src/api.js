@@ -46,7 +46,8 @@ export const api = {
   getPost: (id) => call(`/api/posts/${id}`),
   reply: (id, text) =>
     call(`/api/posts/${id}/replies`, { method: "POST", body: JSON.stringify({ text }) }),
-  heart: (id) => call(`/api/posts/${id}/heart`, { method: "POST" }),
+  react: (id, kind) =>
+    call(`/api/posts/${id}/react`, { method: "POST", body: JSON.stringify({ kind }) }),
   report: (id) => call(`/api/posts/${id}/report`, { method: "POST" }),
   requestChat: (toUserId, postId) =>
     call("/api/requests", { method: "POST", body: JSON.stringify({ toUserId, postId }) }),
