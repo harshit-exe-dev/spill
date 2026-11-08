@@ -224,6 +224,10 @@ h1 .grey { color: #a6a6a6; display: block; }
 .cta.wide { width: 100%; padding: 14px 22px; }
 .act.center { display: block; margin: 12px auto 0; }
 
+.name-status { font-size: 13.5px; font-weight: 600; margin: -6px 0 14px; color: #a6a6a6; }
+.name-status.ok { color: #1db954; }
+.name-status.bad { color: #e5484d; }
+
 @media (max-width: 560px) {
   .me-chip .handle { font-size: 12.5px; }
   .thread-last { max-width: 42%; }
