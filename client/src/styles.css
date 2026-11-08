@@ -55,7 +55,7 @@ button { font-family: inherit; }
   font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: #0b0b0b;
   white-space: nowrap; flex: none;
 }
-.logo-splat { width: 0.82em; height: 0.82em; margin-left: 4px; color: #ff5a1f; vertical-align: -0.06em; }
+.logo-splat { height: 1.02em; width: auto; margin-left: 1px; vertical-align: -0.14em; }
 
 .nav-right { display: flex; align-items: center; gap: 10px; }
 
