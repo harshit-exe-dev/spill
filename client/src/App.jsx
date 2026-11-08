@@ -152,6 +152,8 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [pushState, setPushState] = useState("unknown"); // unknown | off | on | blocked | unsupported
   const [showPushAsk, setShowPushAsk] = useState(false);
+  const [bootWait, setBootWait] = useState(0); // failed boot attempts so far
+  const bootTriesRef = useRef(0);
   const socketRef = useRef(null);
   const openChatRef = useRef(null); // user id of the chat on screen, if any
 
@@ -183,7 +185,17 @@ export default function App() {
   };
 
   const boot = () => {
-    api.me().then(({ user, phrase }) => {
+    // The server naps when nobody's around (free tier) and can take a
+    // minute to wake up, so one failed reach must not be the end of the
+    // story: race a 15s clock, and keep knocking for a while instead of
+    // dying silently on the splash screen.
+    const meWithTimeout = Promise.race([
+      api.me(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("too slow")), 15000)),
+    ]);
+    meWithTimeout.then(({ user, phrase }) => {
+      bootTriesRef.current = 0;
+      setBootWait(0);
       setMe(user);
       if (phrase) setNewPhrase(phrase);
       api.notifications().then((d) => { setNotes(d.notifications); setUnread(d.unread); }).catch(() => {});
@@ -219,7 +231,11 @@ export default function App() {
         });
         loadThreads();
       });
-    }).catch(() => flash("Couldn't reach the server — is the API awake?"));
+    }).catch(() => {
+      bootTriesRef.current += 1;
+      setBootWait(bootTriesRef.current);
+      if (bootTriesRef.current <= 8) setTimeout(boot, 7000);
+    });
   };
 
   useEffect(() => { if (!loggedOut) boot(); }, []);
@@ -352,7 +368,28 @@ export default function App() {
   }
 
   if (!me) {
-    return <div className="boot">spill<span className="dot-inline">.</span></div>;
+    return (
+      <div className="boot">
+        <div>spill<span className="dot-inline">.</span></div>
+        {bootWait > 0 && (
+          <div className="boot-wait">
+            <p>
+              {bootWait <= 8
+                ? "Waking the server up — it naps when nobody's around. Hang tight a few seconds…"
+                : "The server's taking unusually long. Check your connection, then tap retry."}
+            </p>
+            {bootWait > 2 && (
+              <button
+                className="cta"
+                onClick={() => { bootTriesRef.current = 0; setBootWait(0); boot(); }}
+              >
+                Retry now
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   const openPostView = (id) => {
