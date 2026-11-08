@@ -48,7 +48,7 @@ app.set("notify", (userId, event, payload) => {
 // the full notification path (bell + socket toast + browser push)
 app.set("notifyUser", makeNotify(app));
 
-// who's here right now — the little green-dot number in the hero
+// who's here right now — the little pink-dot number in the hero
 const onlineUsers = new Map(); // userId -> socket count
 
 function broadcastPresence() {
@@ -116,8 +116,11 @@ async function seed() {
   let team = await User.findOne({ handle: "TeamSpill" });
   if (!team) {
     team = await User.create({
-      token: "spill-team", handle: "TeamSpill", color: "#1db954",
+      token: "spill-team", handle: "TeamSpill", color: "#ffb6c1",
     });
+  } else if (team.color !== "#ffb6c1") {
+    team.color = "#ffb6c1"; // brand moved to baby pink
+    await team.save();
   }
   await Post.create([
     {
