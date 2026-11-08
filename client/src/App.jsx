@@ -47,7 +47,7 @@ function timeAgo(iso) {
 function Handle({ handle, color }) {
   return (
     <span className="handle">
-      <span className="dot" style={{ background: color }} />
+      <img className="avatar" src="/person.png" alt="" />
       {handle}
     </span>
   );
@@ -112,7 +112,7 @@ function NotesPanel({ notes, pushState, enablePush, disablePush, goNote, close }
             <span className="note-icon">{noteIcon(n)}</span>
             <span className="note-main">
               <span className="note-line">
-                {n.actorHandle && <span className="dot" style={{ background: n.actorColor || "#999" }} />}
+                {n.actorHandle && <img className="avatar" src="/person.png" alt="" />}
                 <b>{n.actorHandle || "Someone"}</b>&nbsp;{noteVerb(n)}
                 {!n.read && <span className="note-dot" />}
               </span>
@@ -563,7 +563,7 @@ function ProfileSheet({ me, close, editName, switchAccount, logout }) {
     <div className="modal-wrap" onClick={close}>
       <div className="modal card sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
-          <span className="avatar-dot" style={{ background: me.color }} />
+          <img className="avatar-dot" src="/person.png" alt="" />
           <div>
             <div className="sheet-name">{me.handle}</div>
             <div className="sheet-sub">that's you on the wall</div>
