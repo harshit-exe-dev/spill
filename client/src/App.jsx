@@ -31,6 +31,8 @@ export default function App() {
   const [threads, setThreads] = useState([]);
   const [chatWith, setChatWith] = useState(null); // {with, messages}
   const [notice, setNotice] = useState("");
+  const [newPhrase, setNewPhrase] = useState(null); // shown exactly once
+  const [showLogin, setShowLogin] = useState(false);
   const socketRef = useRef(null);
 
   const flash = (msg) => {
@@ -43,8 +45,9 @@ export default function App() {
   const loadThreads = () => api.threads().then(setThreads).catch(() => {});
 
   useEffect(() => {
-    api.me().then((user) => {
+    api.me().then(({ user, phrase }) => {
       setMe(user);
+      if (phrase) setNewPhrase(phrase);
       const socket = io(API_URL);
       socketRef.current = socket;
       socket.on("connect", () => socket.emit("identify", getToken()));
@@ -91,6 +94,7 @@ export default function App() {
       <div className="nav">
         <button className="logo" onClick={() => setView("feed")}>spill<span className="dot-inline">.</span></button>
         <div className="nav-right">
+          <button className="nav-link" onClick={() => setShowLogin(true)}>Log in</button>
           <button className={`nav-link ${view === "chats" || view === "chat" ? "active" : ""}`} onClick={() => setView("chats")}>
             Chats{incoming.length > 0 && <span className="badge">{incoming.length}</span>}
           </button>
@@ -105,6 +109,30 @@ export default function App() {
       </div>
 
       {notice && <div className="notice">{notice}</div>}
+
+      {newPhrase && (
+        <div className="modal-wrap">
+          <div className="modal card">
+            <p className="eyebrow small">Your way back in</p>
+            <h2 className="modal-title">Screenshot this phrase.</h2>
+            <p className="sub">
+              There's no email or password here. This phrase is the <b>only</b> way
+              back into <b>{me.handle}</b> — your chats included — on a new phone
+              or browser. Lose it and the account can't be recovered.
+            </p>
+            <div className="phrase">{newPhrase}</div>
+            <button className="cta wide" onClick={() => setNewPhrase(null)}>I saved it</button>
+          </div>
+        </div>
+      )}
+
+      {showLogin && (
+        <LoginModal
+          close={() => setShowLogin(false)}
+          done={(user) => { setShowLogin(false); flash(`Welcome back, ${user.handle}`); window.location.reload(); }}
+          flash={flash}
+        />
+      )}
 
       <main>
         {view === "feed" && (
@@ -140,6 +168,41 @@ export default function App() {
         No real names here, ever. Be kind — the person you're reading could be sitting next to you in the library.
       </footer>
     </>
+  );
+}
+
+function LoginModal({ close, done, flash }) {
+  const [phrase, setPhrase] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = () => {
+    if (!phrase.trim() || busy) return;
+    setBusy(true);
+    api.recover(phrase)
+      .then(done)
+      .catch((e) => { flash(e.message); setBusy(false); });
+  };
+
+  return (
+    <div className="modal-wrap" onClick={close}>
+      <div className="modal card" onClick={(e) => e.stopPropagation()}>
+        <p className="eyebrow small">Log back in</p>
+        <h2 className="modal-title">Your five words.</h2>
+        <p className="sub">Type the login phrase you saved when this name was born. Order matters, spelling doesn't shout — lowercase is fine.</p>
+        <input
+          className="phrase-input"
+          value={phrase}
+          onChange={(e) => setPhrase(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder="e.g. panda river tiger cloud mango"
+          autoFocus
+        />
+        <button className="cta wide" onClick={submit} disabled={busy || !phrase.trim()}>
+          Bring my name back
+        </button>
+        <button className="act ghost center" onClick={close}>Cancel</button>
+      </div>
+    </div>
   );
 }
 
