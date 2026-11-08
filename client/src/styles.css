@@ -67,7 +67,7 @@ button { font-family: inherit; }
 .nav-link.active { background: #0b0b0b; color: #fff; }
 
 .badge {
-  background: #c24968; color: #fff;
+  background: #ffb6c1; color: #0b0b0b;
   font-size: 11px; font-weight: 800;
   border-radius: 999px; padding: 1px 6px; margin-left: 6px;
 }
@@ -92,7 +92,7 @@ button { font-family: inherit; }
 main { width: min(880px, 92vw); margin: 0 auto; padding: 38px 0 30px; }
 
 .eyebrow {
-  color: #c24968; font-size: 12.5px; font-weight: 800;
+  color: #ffb6c1; font-size: 12.5px; font-weight: 800;
   letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 14px;
 }
 .eyebrow.small { margin-top: 28px; }
@@ -219,7 +219,7 @@ h1 .grey { color: #8a8a86; display: block; }
 
 .legal h2 { font-size: 19px; letter-spacing: -0.02em; margin: 28px 0 8px; }
 .legal p { color: #55554f; font-size: 15.5px; line-height: 1.65; max-width: 640px; }
-.legal a { color: #c24968; font-weight: 600; }
+.legal a { color: #ffb6c1; font-weight: 600; }
 
 /* ---------- login phrase modals ---------- */
 
@@ -251,7 +251,7 @@ h1 .grey { color: #8a8a86; display: block; }
 .act.center { display: block; margin: 12px auto 0; }
 
 .name-status { font-size: 13.5px; font-weight: 600; margin: -6px 0 14px; color: #6f6f6a; }
-.name-status.ok { color: #c24968; }
+.name-status.ok { color: #ffb6c1; }
 .name-status.bad { color: #e5484d; }
 
 /* ---------- motion system ----------
