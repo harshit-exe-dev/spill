@@ -419,7 +419,10 @@ export default function App() {
             Chats{incoming.length > 0 && <span className="badge">{incoming.length}</span>}
           </button>
           <button className="me-chip as-button" title="Your profile" onClick={() => setShowProfile(true)}>
-            <Handle handle={me.handle} color={me.color} />
+            <span className="handle">
+              <span className="dot" style={{ background: me.color }} />
+              <span className="handle-name">{me.handle}</span>
+            </span>
             <span className="chip-caret">▾</span>
           </button>
         </div>
