@@ -469,3 +469,5 @@ h1 .grey { color: #8a8a8a; display: block; }
 }
 
 .bell-ico { width: 20px; height: 20px; display: block; }
+
+.chip-avatar { width: 22px; height: 22px; border-radius: 50%; display: block; flex: none; }
