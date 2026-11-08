@@ -5,7 +5,7 @@
 self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { /* plain text push */ }
-  const title = data.title || "Spill It";
+  const title = data.title || "Spill";
   const options = {
     body: data.body || "Something happened on the wall.",
     icon: "/icon-192.png",
