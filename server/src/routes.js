@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const express = require("express");
 const mongoose = require("mongoose");
+const rateLimit = require("express-rate-limit");
 const { User, Post, Reply, ChatRequest, Message, Notification, PushSubscription } = require("./models");
 const { notificationJson, pushReady, VAPID_PUBLIC } = require("./notify");
 
@@ -80,6 +81,25 @@ function preview(text) {
   return oneLine.length > 120 ? oneLine.slice(0, 117) + "…" : oneLine;
 }
 
+// ---------- rate limits ----------
+// Generous on purpose: half a hostel can sit behind one campus IP, so
+// these are set to stop scripts, not students. (The login-phrase
+// endpoint keeps its own stricter counter below.)
+const accountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "too many new accounts from this network — try again in a bit" },
+});
+const writeLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "slow down a little — too much, too fast" },
+});
+
 // ---------- identity ----------
 
 // ~160 everyday words; five of them in a row is a phrase nobody can
@@ -114,7 +134,7 @@ function phraseHash(phrase) {
   return crypto.createHash("sha256").update(normalized).digest("hex");
 }
 
-router.post("/me", async (req, res) => {
+router.post("/me", accountLimiter, async (req, res) => {
   const given = clean(req.body && req.body.token);
   if (given) {
     const existing = await User.findOne({ token: given });
@@ -165,7 +185,7 @@ router.post("/me/recover", async (req, res) => {
   res.json({ user: publicUser(user), token: user.token });
 });
 
-router.post("/me/reroll", auth, async (req, res) => {
+router.post("/me/reroll", auth, writeLimiter, async (req, res) => {
   req.user.handle = randomHandle();
   req.user.handleNorm = req.user.handle.toLowerCase();
   req.user.color = randomColor();
@@ -205,7 +225,7 @@ async function nameTaken(name, exceptUserId) {
   return Boolean(clash);
 }
 
-router.post("/me/name", auth, async (req, res) => {
+router.post("/me/name", auth, writeLimiter, async (req, res) => {
   const name = clean(req.body && req.body.name);
   const problem = nameProblem(name);
   if (problem) return res.status(400).json({ error: problem });
@@ -270,7 +290,7 @@ router.get("/feed", async (req, res) => {
   res.json({ posts: posts.map((p) => postJson(p, viewer && viewer._id)) });
 });
 
-router.post("/posts", auth, async (req, res) => {
+router.post("/posts", auth, writeLimiter, async (req, res) => {
   const text = clean(req.body && req.body.text);
   if (text.length < 3) return res.status(400).json({ error: "write a little more than that" });
   if (text.length > 600) return res.status(400).json({ error: "600 characters max" });
@@ -296,7 +316,7 @@ router.get("/posts/:id", async (req, res) => {
   });
 });
 
-router.post("/posts/:id/replies", auth, async (req, res) => {
+router.post("/posts/:id/replies", auth, writeLimiter, async (req, res) => {
   const text = clean(req.body && req.body.text);
   if (text.length < 1) return res.status(400).json({ error: "empty reply" });
   if (text.length > 400) return res.status(400).json({ error: "400 characters max" });
@@ -318,7 +338,7 @@ router.post("/posts/:id/replies", auth, async (req, res) => {
   res.json({ id: reply._id });
 });
 
-router.post("/posts/:id/react", auth, async (req, res) => {
+router.post("/posts/:id/react", auth, writeLimiter, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "post not found" });
   const kind = clean(req.body && req.body.kind);
   const field = REACTION_FIELDS[kind];
@@ -341,7 +361,7 @@ router.post("/posts/:id/react", auth, async (req, res) => {
   res.json(reactionSummary(post, req.user._id));
 });
 
-router.post("/posts/:id/report", auth, async (req, res) => {
+router.post("/posts/:id/report", auth, writeLimiter, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(404).json({ error: "post not found" });
   }
@@ -360,7 +380,7 @@ router.post("/posts/:id/report", auth, async (req, res) => {
 
 // ---------- private talk ----------
 
-router.post("/requests", auth, async (req, res) => {
+router.post("/requests", auth, writeLimiter, async (req, res) => {
   const toId = clean(req.body && req.body.toUserId);
   if (!toId || toId === String(req.user._id)) {
     return res.status(400).json({ error: "can't request a chat with yourself" });
@@ -410,7 +430,7 @@ router.get("/requests", auth, async (req, res) => {
   });
 });
 
-router.post("/requests/:id/:action", auth, async (req, res) => {
+router.post("/requests/:id/:action", auth, writeLimiter, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "request not found" });
   const request = await ChatRequest.findById(req.params.id);
   if (!request || String(request.to) !== String(req.user._id) || request.status !== "pending") {
@@ -509,7 +529,7 @@ router.get("/push/key", (req, res) => {
   res.json(pushReady ? { publicKey: VAPID_PUBLIC } : { publicKey: null });
 });
 
-router.post("/push/subscribe", auth, async (req, res) => {
+router.post("/push/subscribe", auth, writeLimiter, async (req, res) => {
   const body = req.body || {};
   const endpoint = clean(body.endpoint);
   const keys = body.keys || {};
