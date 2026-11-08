@@ -8,3 +8,10 @@ createRoot(document.getElementById("root")).render(
     <App />
   </React.StrictMode>
 );
+
+// the push worker — registered once, quietly, for every visitor
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
