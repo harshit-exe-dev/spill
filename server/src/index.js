@@ -20,9 +20,18 @@ function originAllowed(origin) {
 }
 
 const app = express();
+app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(cors({ origin: (origin, cb) => cb(null, originAllowed(origin)) }));
 app.use(express.json({ limit: "32kb" }));
+// a JSON API needs few headers, but it needs these: no sniffing our
+// responses into something else, no framing, no referrer leakage
+app.use((req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "no-referrer");
+  next();
+});
 app.use("/api", router);
 app.get("/", (req, res) => res.json({ name: "spill-api", ok: true }));
 
@@ -76,7 +85,7 @@ io.on("connection", (socket) => {
     try {
       if (!me) return;
       const body = clean(text);
-      if (!body || hasBlockedWord(body)) return;
+      if (!body || body.length > 1000 || hasBlockedWord(body)) return;
       const other = await User.findById(toUserId);
       if (!other) return;
       if (!(await acceptedBetween(me._id, other._id))) return;
@@ -134,10 +143,16 @@ async function start() {
 
 start();
 
+// a stray async failure somewhere should log, not kill the process —
+// one bad request is not worth taking the whole wall down
+process.on("unhandledRejection", (err) => {
+  console.error("unhandled rejection:", err && err.message ? err.message : err);
+});
+
 // last-resort error handler: a bad request should get a JSON answer,
 // never a crashed process
 app.use((err, req, res, next) => {
   console.error(err && err.message ? err.message : err);
   if (res.headersSent) return next(err);
-  res.status(500).json({ error: "something broke on our side" });
+  res.status((err && err.status) || 500).json({ error: "something broke on our side" });
 });
