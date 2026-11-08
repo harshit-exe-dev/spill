@@ -44,7 +44,7 @@ async function sendPush(userId, note) {
   const subs = await PushSubscription.find({ user: userId }).lean();
   if (!subs.length) return;
   const payload = JSON.stringify({
-    title: TITLES[note.type] || "Spill",
+    title: TITLES[note.type] || "Spill It",
     body: note.actorHandle
       ? `${note.actorHandle}: ${note.text || ""}`.trim()
       : note.text || "",
