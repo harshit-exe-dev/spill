@@ -343,8 +343,8 @@ export default function App() {
     return (
       <>
         <div className="out-screen">
-          <div className="logo big">spill<span className="dot-inline">.</span></div>
-          <h1><span className="grey">Logged out.</span>Peace.</h1>
+          <div className="logo big">spill</div>
+          <h1><span className="grey">Logged out</span>Peace</h1>
           <p className="sub">
             Your name and your chats are exactly where you left them — if you
             kept your login phrase. No phrase, no way back. That's the deal
@@ -370,7 +370,7 @@ export default function App() {
   if (!me) {
     return (
       <div className="boot">
-        <div>spill<span className="dot-inline">.</span></div>
+        <div>spill</div>
         {bootWait > 0 && (
           <div className="boot-wait">
             <p>
@@ -410,7 +410,7 @@ export default function App() {
   return (
     <>
       <div className="nav">
-        <button className="logo" onClick={() => setView("feed")}>spill<span className="dot-inline">.</span></button>
+        <button className="logo" onClick={() => setView("feed")}>spill</button>
         <div className="nav-right">
           <button className="bell" title="Notifications" onClick={openNotes}>
             🔔{unread > 0 && <span className="badge bell-badge">{unread}</span>}
@@ -702,7 +702,7 @@ function Feed({ me, posts, sort, setSort, online, reload, openPost, talkPrivatel
   return (
     <>
       <p className="eyebrow">The campus wall · no names, no judgement</p>
-      <h1><span className="grey">Same campus.</span>Everything unsaid.</h1>
+      <h1><span className="grey">Same campus</span>Everything unsaid</h1>
       <p className="sub">
         Confess it, rant it, ask it. Here you're <b>{me.handle}</b> — a name
         you picked or the dice gave you — and that's all anyone knows.
@@ -819,7 +819,7 @@ function Chats({ incoming, threads, act, openChat, openPost }) {
   return (
     <>
       <p className="eyebrow">Private talk</p>
-      <h1><span className="grey">Only if</span>both say yes.</h1>
+      <h1><span className="grey">Only if</span>both say yes</h1>
       <p className="sub">Nobody can message you out of nowhere here. A request comes in, you choose, and only then does a chat exist.</p>
 
       {incoming.length > 0 && (
@@ -857,7 +857,7 @@ function Privacy({ back }) {
     <div className="legal">
       <button className="back" onClick={back}>← Back to the wall</button>
       <p className="eyebrow">Privacy</p>
-      <h1><span className="grey">We don't know</span>who you are.</h1>
+      <h1><span className="grey">We don't know</span>who you are</h1>
       <p className="sub">Last updated 8 November 2026. Short on purpose — there's barely anything to say, and that's the point.</p>
 
       <h2>The short version</h2>
@@ -883,7 +883,7 @@ function Terms({ back }) {
     <div className="legal">
       <button className="back" onClick={back}>← Back to the wall</button>
       <p className="eyebrow">Terms</p>
-      <h1><span className="grey">Few rules.</span>That's the deal.</h1>
+      <h1><span className="grey">Few rules</span>That's the deal</h1>
       <p className="sub">Last updated 8 November 2026. Using Spill means you're good with these.</p>
 
       <h2>Names stay fake</h2>
