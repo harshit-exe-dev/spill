@@ -35,6 +35,13 @@ app.set("notify", (userId, event, payload) => {
   io.to(`user:${userId}`).emit(event, payload);
 });
 
+// who's here right now — the little green-dot number in the hero
+const onlineUsers = new Map(); // userId -> socket count
+
+function broadcastPresence() {
+  io.emit("presence", { online: onlineUsers.size });
+}
+
 io.on("connection", (socket) => {
   let me = null;
 
@@ -45,9 +52,20 @@ io.on("connection", (socket) => {
       if (!user) return;
       me = user;
       socket.join(`user:${user._id}`);
+      const key = String(user._id);
+      onlineUsers.set(key, (onlineUsers.get(key) || 0) + 1);
+      broadcastPresence();
     } catch (err) {
       // a bad identify just means no live updates for this socket
     }
+  });
+
+  socket.on("disconnect", () => {
+    if (!me) return;
+    const key = String(me._id);
+    const left = (onlineUsers.get(key) || 1) - 1;
+    if (left <= 0) onlineUsers.delete(key); else onlineUsers.set(key, left);
+    broadcastPresence();
   });
 
   socket.on("dm:send", async ({ toUserId, text }) => {
