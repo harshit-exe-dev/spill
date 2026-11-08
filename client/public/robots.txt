@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://spillcampus.vercel.app/sitemap.xml
