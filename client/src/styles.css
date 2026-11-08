@@ -74,6 +74,7 @@ button { font-family: inherit; }
 .me-chip {
   display: flex; align-items: center; gap: 6px;
   background: #f1f1ee; border-radius: 999px; padding: 7px 8px 7px 14px;
+  min-width: 0;
 }
 
 .reroll {
@@ -81,8 +82,9 @@ button { font-family: inherit; }
   width: 24px; height: 24px; cursor: pointer; font-size: 13px; line-height: 1;
 }
 
-.handle { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; }
+.handle { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; min-width: 0; }
 .handle .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.handle-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 /* ---------- layout ---------- */
 
@@ -445,4 +447,9 @@ h1 .grey { color: #a6a6a6; display: block; }
 @media (max-width: 560px) {
   .me-chip .handle { font-size: 12.5px; }
   .thread-last { max-width: 42%; }
+  /* keep the floating pill one tidy row even with a long name */
+  .nav { padding-left: 16px; }
+  .nav-right { gap: 6px; }
+  .nav-link { padding: 9px 9px; }
+  .me-chip { max-width: 146px; padding-left: 11px; }
 }
