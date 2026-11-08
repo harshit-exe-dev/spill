@@ -116,9 +116,11 @@ router.post("/me", async (req, res) => {
     }
   }
   const phrase = randomPhrase();
+  const handle = randomHandle();
   const user = await User.create({
     token: crypto.randomBytes(24).toString("hex"),
-    handle: randomHandle(),
+    handle,
+    handleNorm: handle.toLowerCase(),
     color: randomColor(),
     recoveryHash: phraseHash(phrase),
   });
@@ -151,9 +153,70 @@ router.post("/me/recover", async (req, res) => {
 
 router.post("/me/reroll", auth, async (req, res) => {
   req.user.handle = randomHandle();
+  req.user.handleNorm = req.user.handle.toLowerCase();
   req.user.color = randomColor();
   await req.user.save();
   res.json({ user: publicUser(req.user) });
+});
+
+// ---------- pick your own name ----------
+
+// Names nobody may claim: the house accounts and anything official-ish.
+const RESERVED_NAMES = [
+  "teamspill", "spill", "spillteam", "admin", "administrator", "mod",
+  "moderator", "official", "support", "system", "anonymous", "owner",
+];
+
+function nameProblem(name) {
+  if (name.length < 2) return "too short — at least 2 characters";
+  if (name.length > 20) return "too long — 20 characters max";
+  if (!/^[A-Za-z0-9_ ]+$/.test(name)) return "letters, numbers, spaces and _ only";
+  if (!/[A-Za-z]/.test(name)) return "give it at least one letter";
+  const squashed = name.toLowerCase().replace(/[\s_]+/g, "");
+  if (RESERVED_NAMES.includes(squashed)) return "that name is reserved";
+  if (hasBlockedWord(name)) return "that name can't be used here";
+  return null;
+}
+
+async function nameTaken(name, exceptUserId) {
+  const norm = name.toLowerCase();
+  const clash = await User.findOne({
+    _id: { $ne: exceptUserId },
+    $or: [
+      { handleNorm: norm },
+      // accounts created before handleNorm existed
+      { handle: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    ],
+  });
+  return Boolean(clash);
+}
+
+router.post("/me/name", auth, async (req, res) => {
+  const name = clean(req.body && req.body.name);
+  const problem = nameProblem(name);
+  if (problem) return res.status(400).json({ error: problem });
+  if (name.toLowerCase() === req.user.handle.toLowerCase()) {
+    return res.json({ user: publicUser(req.user) });
+  }
+  if (await nameTaken(name, req.user._id)) {
+    return res.status(409).json({ error: `"${name}" is already taken — try another` });
+  }
+  req.user.handle = name;
+  req.user.handleNorm = name.toLowerCase();
+  await req.user.save();
+  res.json({ user: publicUser(req.user) });
+});
+
+// availability check while typing, so the answer comes before the save
+router.get("/me/name-available", auth, async (req, res) => {
+  const name = clean(req.query.name);
+  const problem = nameProblem(name);
+  if (problem) return res.json({ available: false, reason: problem });
+  if (name.toLowerCase() === req.user.handle.toLowerCase()) {
+    return res.json({ available: true });
+  }
+  const taken = await nameTaken(name, req.user._id);
+  res.json(taken ? { available: false, reason: `"${name}" is already taken` } : { available: true });
 });
 
 // ---------- confessions ----------
