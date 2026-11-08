@@ -122,6 +122,9 @@ async function seed() {
     team.color = "#ffb6c1"; // brand moved to baby pink
     await team.save();
   }
+  // posts carry a snapshot of the author's colour from when they were
+  // written, so the team's old posts need the new colour painted on too
+  await Post.updateMany({ author: team._id }, { color: "#ffb6c1" });
   await Post.create([
     {
       author: team._id, handle: team.handle, color: team.color,
