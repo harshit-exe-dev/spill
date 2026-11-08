@@ -3,6 +3,38 @@ import { io } from "socket.io-client";
 import { api, getToken } from "./api";
 import { API_URL } from "./config";
 
+export const REACTIONS = [
+  { kind: "heart", emoji: "❤️" },
+  { kind: "fire", emoji: "🔥" },
+  { kind: "cry", emoji: "😭" },
+  { kind: "skull", emoji: "💀" },
+];
+
+export function Reactions({ post, onReact }) {
+  const [data, setData] = useState(post.reactions);
+  useEffect(() => setData(post.reactions), [post.id]);
+  const hit = (kind) => {
+    setData((d) => ({
+      counts: { ...d.counts, [kind]: d.counts[kind] + (d.mine[kind] ? -1 : 1) },
+      mine: { ...d.mine, [kind]: !d.mine[kind] },
+    }));
+    onReact(post.id, kind).then(setData).catch(() => setData(post.reactions));
+  };
+  return (
+    <>
+      {REACTIONS.map(({ kind, emoji }) => (
+        <button
+          key={kind}
+          className={`act react ${kind} ${data.mine[kind] ? "on" : ""}`}
+          onClick={() => hit(kind)}
+        >
+          <span className="rx-emoji" key={data.counts[kind]}>{emoji}</span> {data.counts[kind]}
+        </button>
+      ))}
+    </>
+  );
+}
+
 function timeAgo(iso) {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
   if (mins < 1) return "just now";
@@ -34,6 +66,9 @@ export default function App() {
   const [newPhrase, setNewPhrase] = useState(null); // shown exactly once
   const [showLogin, setShowLogin] = useState(false);
   const [showName, setShowName] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [online, setOnline] = useState(0);
+  const [loggedOut, setLoggedOut] = useState(() => localStorage.getItem("spill-out") === "1");
   const socketRef = useRef(null);
 
   const flash = (msg) => {
@@ -45,15 +80,16 @@ export default function App() {
   const loadIncoming = () => api.incoming().then(setIncoming).catch(() => {});
   const loadThreads = () => api.threads().then(setThreads).catch(() => {});
 
-  useEffect(() => {
+  const boot = () => {
     api.me().then(({ user, phrase }) => {
       setMe(user);
       if (phrase) setNewPhrase(phrase);
       const socket = io(API_URL);
       socketRef.current = socket;
       socket.on("connect", () => socket.emit("identify", getToken()));
-      socket.on("request:new", () => { loadIncoming(); flash("Someone wants to talk privately"); });
-      socket.on("request:accepted", () => { loadThreads(); flash("They said yes — you can talk now"); });
+      socket.on("presence", (d) => setOnline(d.online || 0));
+      socket.on("request:new", () => { loadIncoming(); flash("Someone wants to talk privately 👀"); });
+      socket.on("request:accepted", () => { loadThreads(); flash("They said yes!! Your chat is open"); });
       socket.on("dm:new", (msg) => {
         setChatWith((current) => {
           if (current && (msg.fromId === current.with.id || msg.fromId === user.id)) {
@@ -66,10 +102,55 @@ export default function App() {
         loadThreads();
       });
     }).catch(() => flash("Couldn't reach the server — is the API awake?"));
-  }, []);
+  };
+
+  useEffect(() => { if (!loggedOut) boot(); }, []);
+
+  const logout = () => {
+    localStorage.removeItem("spill-token");
+    localStorage.setItem("spill-out", "1");
+    if (socketRef.current) socketRef.current.disconnect();
+    setShowProfile(false);
+    setMe(null);
+    setLoggedOut(true);
+  };
+
+  const startFresh = () => {
+    localStorage.removeItem("spill-out");
+    setLoggedOut(false);
+    boot();
+  };
 
   useEffect(() => { if (me) loadFeed(); }, [me, sort]);
   useEffect(() => { if (me && view === "chats") { loadIncoming(); loadThreads(); } }, [me, view]);
+
+  if (loggedOut && !me) {
+    return (
+      <>
+        <div className="out-screen">
+          <div className="logo big">spill<span className="dot-inline">.</span></div>
+          <h1><span className="grey">Logged out.</span>Peace.</h1>
+          <p className="sub">
+            Your name and your chats are exactly where you left them — if you
+            kept your login phrase. No phrase, no way back. That's the deal
+            with anonymous.
+          </p>
+          <div className="out-actions">
+            <button className="cta" onClick={() => setShowLogin(true)}>Log in with my phrase</button>
+            <button className="pill" onClick={startFresh}>Start fresh instead</button>
+          </div>
+        </div>
+        {showLogin && (
+          <LoginModal
+            close={() => setShowLogin(false)}
+            done={() => { localStorage.removeItem("spill-out"); window.location.reload(); }}
+            flash={flash}
+          />
+        )}
+        {notice && <div className="notice">{notice}</div>}
+      </>
+    );
+  }
 
   if (!me) {
     return <div className="boot">spill<span className="dot-inline">.</span></div>;
@@ -86,7 +167,7 @@ export default function App() {
 
   const talkPrivately = (post) => {
     api.requestChat(post.authorId, post.id)
-      .then((d) => flash(d.status === "accepted" ? "You already talk with them — check Chats" : "Request sent. If they say yes, a chat opens."))
+      .then((d) => flash(d.status === "accepted" ? "You already talk with them — check Chats" : "Shot sent 🎯 If they say yes, a chat opens."))
       .catch((e) => flash(e.message));
   };
 
@@ -95,20 +176,13 @@ export default function App() {
       <div className="nav">
         <button className="logo" onClick={() => setView("feed")}>spill<span className="dot-inline">.</span></button>
         <div className="nav-right">
-          <button className="nav-link" onClick={() => setShowLogin(true)}>Log in</button>
           <button className={`nav-link ${view === "chats" || view === "chat" ? "active" : ""}`} onClick={() => setView("chats")}>
             Chats{incoming.length > 0 && <span className="badge">{incoming.length}</span>}
           </button>
-          <span className="me-chip" title="This is the only name anyone sees">
+          <button className="me-chip as-button" title="Your profile" onClick={() => setShowProfile(true)}>
             <Handle handle={me.handle} color={me.color} />
-            <button className="reroll" title="Write my own name" onClick={() => setShowName(true)}>
-              ✎
-            </button>
-            <button className="reroll" title="Re-roll my name"
-              onClick={() => api.reroll().then((u) => { setMe(u); flash(`You are now ${u.handle}`); })}>
-              ↻
-            </button>
-          </span>
+            <span className="chip-caret">▾</span>
+          </button>
         </div>
       </div>
 
@@ -130,12 +204,22 @@ export default function App() {
         </div>
       )}
 
+      {showProfile && (
+        <ProfileSheet
+          me={me}
+          close={() => setShowProfile(false)}
+          editName={() => { setShowProfile(false); setShowName(true); }}
+          switchAccount={() => { setShowProfile(false); setShowLogin(true); }}
+          logout={logout}
+        />
+      )}
+
       {showName && (
         <NameModal
           me={me}
           close={() => setShowName(false)}
-          done={(u) => { setMe(u); setShowName(false); flash(`You are now ${u.handle}`); }}
-          random={() => api.reroll().then((u) => { setMe(u); setShowName(false); flash(`You are now ${u.handle}`); })}
+          done={(u) => { setMe(u); setShowName(false); flash(`Name secured — you're ${u.handle} now`); }}
+          random={() => api.reroll().then((u) => { setMe(u); setShowName(false); flash(`New era unlocked: ${u.handle}`); })}
         />
       )}
 
@@ -147,10 +231,10 @@ export default function App() {
         />
       )}
 
-      <main>
+      <main key={view + (openPost ? openPost.post.id : "")} className="view-enter">
         {view === "feed" && (
           <Feed
-            me={me} posts={posts} sort={sort} setSort={setSort}
+            me={me} posts={posts} sort={sort} setSort={setSort} online={online}
             reload={loadFeed} openPost={openPostView}
             talkPrivately={talkPrivately} flash={flash}
           />
@@ -181,6 +265,43 @@ export default function App() {
         No real names here, ever. Be kind — the person you're reading could be sitting next to you in the library.
       </footer>
     </>
+  );
+}
+
+function ProfileSheet({ me, close, editName, switchAccount, logout }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <div className="modal-wrap" onClick={close}>
+      <div className="modal card sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head">
+          <span className="avatar-dot" style={{ background: me.color }} />
+          <div>
+            <div className="sheet-name">{me.handle}</div>
+            <div className="sheet-sub">that's you on the wall</div>
+          </div>
+        </div>
+        <button className="sheet-row" onClick={editName}>
+          <span>✏️ Edit my name</span><span className="sheet-arrow">→</span>
+        </button>
+        <button className="sheet-row" onClick={switchAccount}>
+          <span>🔑 Log in as someone else</span><span className="sheet-arrow">→</span>
+        </button>
+        {!confirming ? (
+          <button className="sheet-row danger" onClick={() => setConfirming(true)}>
+            <span>🚪 Log out</span><span className="sheet-arrow">→</span>
+          </button>
+        ) : (
+          <button className="sheet-row danger confirm" onClick={logout}>
+            <span>Tap again to log out — phrase saved?</span>
+          </button>
+        )}
+        <p className="sheet-note">
+          Your login phrase is the only way back into this name and your
+          chats. Logged out without it = gone forever. No pressure.
+        </p>
+        <button className="act ghost center" onClick={close}>Close</button>
+      </div>
+    </div>
   );
 }
 
@@ -276,7 +397,7 @@ function LoginModal({ close, done, flash }) {
   );
 }
 
-function Feed({ me, posts, sort, setSort, reload, openPost, talkPrivately, flash }) {
+function Feed({ me, posts, sort, setSort, online, reload, openPost, talkPrivately, flash }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -284,7 +405,7 @@ function Feed({ me, posts, sort, setSort, reload, openPost, talkPrivately, flash
     if (text.trim().length < 3 || busy) return;
     setBusy(true);
     api.post(text)
-      .then(() => { setText(""); reload(); })
+      .then(() => { setText(""); reload(); flash("It's on the wall. No take-backs."); })
       .catch((e) => flash(e.message))
       .finally(() => setBusy(false));
   };
@@ -297,12 +418,15 @@ function Feed({ me, posts, sort, setSort, reload, openPost, talkPrivately, flash
         Confess it, rant it, ask it. Here you're <b>{me.handle}</b> — a name
         you picked or the dice gave you — and that's all anyone knows.
       </p>
+      {online > 0 && (
+        <div className="presence"><span className="live-dot" />{online} here rn</div>
+      )}
 
       <div className="compose card">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, 600))}
-          placeholder="Say the thing you'd never say out loud…"
+          placeholder="Spill the tea… it stays anonymous, promise"
           rows={3}
         />
         <div className="compose-row">
@@ -314,39 +438,34 @@ function Feed({ me, posts, sort, setSort, reload, openPost, talkPrivately, flash
       </div>
 
       <div className="sort-row">
-        <button className={sort === "new" ? "pill active" : "pill"} onClick={() => setSort("new")}>Newest</button>
-        <button className={sort === "top" ? "pill active" : "pill"} onClick={() => setSort("top")}>Most loved</button>
+        <button className={sort === "new" ? "pill active" : "pill"} onClick={() => setSort("new")}>Fresh</button>
+        <button className={sort === "top" ? "pill active" : "pill"} onClick={() => setSort("top")}>Top vibes</button>
       </div>
 
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} me={me} openPost={openPost} talkPrivately={talkPrivately} flash={flash} />
+      {posts.map((post, i) => (
+        <PostCard key={post.id} post={post} me={me} index={i} openPost={openPost} talkPrivately={talkPrivately} flash={flash} />
       ))}
-      {posts.length === 0 && <p className="empty">Nothing here yet. Yours could be the first voice on the wall.</p>}
+      {posts.length === 0 && <p className="empty">it's giving… empty. drop the first spill 👇</p>}
     </>
   );
 }
 
-function PostCard({ post, me, openPost, talkPrivately, flash }) {
-  const [hearts, setHearts] = useState(post.hearts);
-  const [hearted, setHearted] = useState(false);
+function PostCard({ post, me, index, openPost, talkPrivately, flash }) {
   const mine = post.authorId === me.id;
 
-  const heart = () =>
-    api.heart(post.id).then((d) => { setHearts(d.hearts); setHearted(d.hearted); }).catch(() => {});
-
   const report = () =>
-    api.report(post.id).then(() => flash("Reported. Three reports hide a post automatically.")).catch(() => {});
+    api.report(post.id).then(() => flash("Reported. Three reports and it's gone.")).catch(() => {});
 
   return (
-    <article className="card post">
+    <article className="card post rise" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
       <div className="post-head">
         <Handle handle={post.handle} color={post.color} />
         <span className="time">{timeAgo(post.createdAt)}</span>
       </div>
       <p className="post-text" onClick={() => openPost(post.id)}>{post.text}</p>
       <div className="post-actions">
-        <button className={`act ${hearted ? "on" : ""}`} onClick={heart}>♥ {hearts}</button>
-        <button className="act" onClick={() => openPost(post.id)}>💬 {post.replyCount} replies</button>
+        <Reactions post={post} onReact={api.react} />
+        <button className="act" onClick={() => openPost(post.id)}>💬 {post.replyCount}</button>
         {!mine && <button className="act strong" onClick={() => talkPrivately(post)}>Talk privately</button>}
         {!mine && <button className="act ghost" onClick={report}>Report</button>}
       </div>
@@ -373,11 +492,10 @@ function PostView({ me, data, back, reload, talkPrivately, flash }) {
           <span className="time">{timeAgo(post.createdAt)}</span>
         </div>
         <p className="post-text">{post.text}</p>
-        {!mine && (
-          <div className="post-actions">
-            <button className="act strong" onClick={() => talkPrivately(post)}>Talk privately</button>
-          </div>
-        )}
+        <div className="post-actions">
+          <Reactions post={post} onReact={api.react} />
+          {!mine && <button className="act strong" onClick={() => talkPrivately(post)}>Talk privately</button>}
+        </div>
       </article>
 
       <p className="eyebrow small">{replies.length} public replies</p>
@@ -390,13 +508,13 @@ function PostView({ me, data, back, reload, talkPrivately, flash }) {
           <p className="post-text">{r.text}</p>
         </div>
       ))}
-      {replies.length === 0 && <p className="empty">No replies yet. Say the first kind thing.</p>}
+      {replies.length === 0 && <p className="empty">No replies yet. Be the first to say something real.</p>}
 
       <div className="compose card">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, 400))}
-          placeholder={`Reply as ${me.handle}…`}
+          placeholder={`Add your two cents as ${me.handle}…`}
           rows={2}
         />
         <div className="compose-row">
@@ -439,7 +557,7 @@ function Chats({ incoming, threads, act, openChat, openPost }) {
         </button>
       ))}
       {threads.length === 0 && incoming.length === 0 && (
-        <p className="empty">No conversations yet. When a confession hits home, tap “Talk privately” on it.</p>
+        <p className="empty">No convos yet. When a spill hits home, shoot your shot from the post.</p>
       )}
     </>
   );
@@ -464,7 +582,7 @@ function ChatView({ data, back, send }) {
       <button className="back" onClick={back}>← All chats</button>
       <div className="chat-head card">
         <Handle handle={data.with.handle} color={data.with.color} />
-        <span className="time">still a random name, even here</span>
+        <span className="time">names stay fake here. vibes stay real.</span>
       </div>
       <div className="chat-body">
         {data.messages.map((m) => (
