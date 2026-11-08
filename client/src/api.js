@@ -19,10 +19,20 @@ async function call(path, options = {}) {
 }
 
 export const api = {
+  // resolves { user, phrase } — phrase is set only the one time an
+  // account is created (or first upgraded), so the app can show it once
   me: () =>
     call("/api/me", {
       method: "POST",
       body: JSON.stringify({ token: getToken() }),
+    }).then((d) => {
+      localStorage.setItem("spill-token", d.token);
+      return { user: d.user, phrase: d.phrase || null };
+    }),
+  recover: (phrase) =>
+    call("/api/me/recover", {
+      method: "POST",
+      body: JSON.stringify({ phrase }),
     }).then((d) => {
       localStorage.setItem("spill-token", d.token);
       return d.user;
