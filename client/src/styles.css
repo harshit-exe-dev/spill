@@ -67,7 +67,7 @@ button { font-family: inherit; }
 .nav-link.active { background: #0b0b0b; color: #fff; }
 
 .badge {
-  background: #146c43; color: #fff;
+  background: #c24968; color: #fff;
   font-size: 11px; font-weight: 800;
   border-radius: 999px; padding: 1px 6px; margin-left: 6px;
 }
@@ -92,7 +92,7 @@ button { font-family: inherit; }
 main { width: min(880px, 92vw); margin: 0 auto; padding: 38px 0 30px; }
 
 .eyebrow {
-  color: #146c43; font-size: 12.5px; font-weight: 800;
+  color: #c24968; font-size: 12.5px; font-weight: 800;
   letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 14px;
 }
 .eyebrow.small { margin-top: 28px; }
@@ -219,7 +219,7 @@ h1 .grey { color: #8a8a86; display: block; }
 
 .legal h2 { font-size: 19px; letter-spacing: -0.02em; margin: 28px 0 8px; }
 .legal p { color: #55554f; font-size: 15.5px; line-height: 1.65; max-width: 640px; }
-.legal a { color: #146c43; font-weight: 600; }
+.legal a { color: #c24968; font-weight: 600; }
 
 /* ---------- login phrase modals ---------- */
 
@@ -251,7 +251,7 @@ h1 .grey { color: #8a8a86; display: block; }
 .act.center { display: block; margin: 12px auto 0; }
 
 .name-status { font-size: 13.5px; font-weight: 600; margin: -6px 0 14px; color: #6f6f6a; }
-.name-status.ok { color: #146c43; }
+.name-status.ok { color: #c24968; }
 .name-status.bad { color: #e5484d; }
 
 /* ---------- motion system ----------
@@ -329,7 +329,7 @@ h1 .grey { color: #8a8a86; display: block; }
   padding: 7px 14px; font-size: 13px; font-weight: 700; margin: -14px 0 22px;
 }
 .live-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #1db954;
+  width: 8px; height: 8px; border-radius: 50%; background: #ff9fb2;
   animation: pulseDot 2s infinite;
 }
 
@@ -446,7 +446,7 @@ h1 .grey { color: #8a8a86; display: block; }
 .note-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .note-line { display: flex; align-items: center; gap: 6px; font-size: 14px; flex-wrap: wrap; }
 .note-line .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.note-dot { width: 7px; height: 7px; border-radius: 50%; background: #1db954; flex: none; }
+.note-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff9fb2; flex: none; }
 .note-preview {
   color: #55554f; font-size: 13.5px; line-height: 1.45;
   overflow: hidden; display: -webkit-box;
