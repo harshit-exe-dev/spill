@@ -1,7 +1,8 @@
 const crypto = require("crypto");
 const express = require("express");
 const mongoose = require("mongoose");
-const { User, Post, Reply, ChatRequest, Message } = require("./models");
+const { User, Post, Reply, ChatRequest, Message, Notification, PushSubscription } = require("./models");
+const { notificationJson, pushReady, VAPID_PUBLIC } = require("./notify");
 
 const router = express.Router();
 
@@ -64,6 +65,19 @@ function threadKey(a, b) {
 
 function publicUser(u) {
   return { id: u._id, handle: u.handle, color: u.color };
+}
+
+// Fire-and-forget a bell/toast/push notification (see notify.js).
+// Never awaited by the routes: the reply/request itself is the job,
+// the notification is just the echo.
+function tell(req, userId, data) {
+  const notifyUser = req.app.get("notifyUser");
+  if (notifyUser) notifyUser(userId, data).catch(() => {});
+}
+
+function preview(text) {
+  const oneLine = clean(text);
+  return oneLine.length > 120 ? oneLine.slice(0, 117) + "…" : oneLine;
 }
 
 // ---------- identity ----------
@@ -296,6 +310,11 @@ router.post("/posts/:id/replies", auth, async (req, res) => {
   });
   post.replyCount += 1;
   await post.save();
+  tell(req, post.author, {
+    type: "reply", actorId: req.user._id,
+    actorHandle: req.user.handle, actorColor: req.user.color,
+    post: post._id, text: preview(text),
+  });
   res.json({ id: reply._id });
 });
 
@@ -308,8 +327,17 @@ router.post("/posts/:id/react", auth, async (req, res) => {
   if (!post || post.hidden) return res.status(404).json({ error: "post not found" });
   const list = post[field];
   const i = list.findIndex((u) => String(u) === String(req.user._id));
+  const added = i < 0;
   if (i >= 0) list.splice(i, 1); else list.push(req.user._id);
   await post.save();
+  if (added) {
+    const emoji = { heart: "❤️", fire: "🔥", cry: "😭", skull: "💀" }[kind];
+    tell(req, post.author, {
+      type: "reaction", actorId: req.user._id,
+      actorHandle: req.user.handle, actorColor: req.user.color,
+      post: post._id, emoji, text: preview(post.text),
+    });
+  }
   res.json(reactionSummary(post, req.user._id));
 });
 
@@ -355,6 +383,16 @@ router.post("/requests", auth, async (req, res) => {
     post: req.body.postId || undefined,
   });
   req.app.get("notify")(target._id, "request:new", { requestId: request._id });
+  let aboutPost = null;
+  if (request.post && mongoose.isValidObjectId(request.post)) {
+    aboutPost = await Post.findById(request.post).lean();
+  }
+  tell(req, target._id, {
+    type: "request", actorId: req.user._id,
+    actorHandle: req.user.handle, actorColor: req.user.color,
+    post: aboutPost ? aboutPost._id : undefined,
+    text: aboutPost ? preview(aboutPost.text) : "wants to talk privately",
+  });
   res.json({ status: "pending", requestId: request._id });
 });
 
@@ -384,6 +422,11 @@ router.post("/requests/:id/:action", auth, async (req, res) => {
   await request.save();
   if (request.status === "accepted") {
     req.app.get("notify")(request.from, "request:accepted", { requestId: request._id });
+    tell(req, request.from, {
+      type: "accepted", actorId: req.user._id,
+      actorHandle: req.user.handle, actorColor: req.user.color,
+      withUser: req.user._id, text: "your chat is open — say hi",
+    });
   }
   res.json({ status: request.status });
 });
@@ -433,6 +476,74 @@ router.get("/threads/:userId/messages", auth, async (req, res) => {
       text: m.text, createdAt: m.createdAt,
     })),
   });
+});
+
+// ---------- the bell ----------
+
+router.get("/notifications", auth, async (req, res) => {
+  const notes = await Notification.find({ user: req.user._id })
+    .sort({ createdAt: -1 }).limit(40).lean();
+  const unread = await Notification.countDocuments({ user: req.user._id, read: false });
+  res.json({ notifications: notes.map(notificationJson), unread });
+});
+
+// mark some (ids) or everything (all: true) as read
+router.post("/notifications/read", auth, async (req, res) => {
+  const body = req.body || {};
+  if (body.all === true) {
+    await Notification.updateMany({ user: req.user._id, read: false }, { read: true });
+  } else if (Array.isArray(body.ids) && body.ids.length) {
+    const ids = body.ids.filter((id) => mongoose.isValidObjectId(id)).slice(0, 50);
+    await Notification.updateMany(
+      { user: req.user._id, _id: { $in: ids } }, { read: true });
+  }
+  const unread = await Notification.countDocuments({ user: req.user._id, read: false });
+  res.json({ ok: true, unread });
+});
+
+// ---------- browser push ----------
+
+// the public half of the VAPID pair — safe to hand out, the browser
+// needs it to subscribe
+router.get("/push/key", (req, res) => {
+  res.json(pushReady ? { publicKey: VAPID_PUBLIC } : { publicKey: null });
+});
+
+router.post("/push/subscribe", auth, async (req, res) => {
+  const body = req.body || {};
+  const endpoint = clean(body.endpoint);
+  const keys = body.keys || {};
+  const p256dh = clean(keys.p256dh);
+  const authKey = clean(keys.auth);
+  let host = "";
+  try { host = new URL(endpoint).hostname; } catch (e) { /* handled below */ }
+  // subscriptions only ever point at the big push services — anything
+  // else is not a browser talking
+  const PUSH_HOSTS = ["fcm.googleapis.com", "updates.push.services.mozilla.com",
+    "wns2-", "notify.windows.com", "web.push.apple.com", "push.apple.com"];
+  if (!endpoint.startsWith("https://") || endpoint.length > 500 ||
+      !PUSH_HOSTS.some((h) => host.includes(h)) || !p256dh || !authKey) {
+    return res.status(400).json({ error: "that subscription doesn't look right" });
+  }
+  await PushSubscription.findOneAndUpdate(
+    { endpoint },
+    { user: req.user._id, endpoint, p256dh, auth: authKey },
+    { upsert: true }
+  );
+  // a handful of browsers per person is plenty; drop the oldest extras
+  const mine = await PushSubscription.find({ user: req.user._id }).sort({ createdAt: -1 }).lean();
+  if (mine.length > 5) {
+    await PushSubscription.deleteMany({ _id: { $in: mine.slice(5).map((s) => s._id) } });
+  }
+  res.json({ ok: true });
+});
+
+router.post("/push/unsubscribe", auth, async (req, res) => {
+  const endpoint = clean(req.body && req.body.endpoint);
+  if (endpoint) {
+    await PushSubscription.deleteOne({ user: req.user._id, endpoint });
+  }
+  res.json({ ok: true });
 });
 
 module.exports = { router, threadKey, acceptedBetween, clean, hasBlockedWord };
