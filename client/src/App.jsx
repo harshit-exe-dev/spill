@@ -151,6 +151,7 @@ export default function App() {
   const [showNotes, setShowNotes] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [pushState, setPushState] = useState("unknown"); // unknown | off | on | blocked | unsupported
+  const [showPushAsk, setShowPushAsk] = useState(false);
   const socketRef = useRef(null);
   const openChatRef = useRef(null); // user id of the chat on screen, if any
 
@@ -266,7 +267,31 @@ export default function App() {
     else if ((note.type === "accepted" || note.type === "message") && note.withUserId) openChat(note.withUserId);
   };
 
+  // The browser's own permission dialog is cold and a little scary, so
+  // it never fires out of nowhere: once you're in and settled, our own
+  // card asks first — nicely, in our voice — and the system dialog only
+  // shows if you tap yes. Say nah once and we never bring it up again
+  // (the bell panel keeps a quiet manual switch either way).
+  useEffect(() => {
+    if (!me || newPhrase || pushState !== "off") return;
+    if (!("Notification" in window) || Notification.permission === "denied") return;
+    if (localStorage.getItem("spill-push-asked")) return;
+    const timer = setTimeout(() => setShowPushAsk(true), 1800);
+    return () => clearTimeout(timer);
+  }, [me, newPhrase, pushState]);
+
+  const dismissPushAsk = () => {
+    localStorage.setItem("spill-push-asked", "1");
+    setShowPushAsk(false);
+  };
+
+  const acceptPushAsk = () => {
+    dismissPushAsk();
+    enablePush();
+  };
+
   const enablePush = async () => {
+    localStorage.setItem("spill-push-asked", "1");
     try {
       const key = await api.pushKey();
       if (!key) { flash("Push isn't switched on at the server yet"); return; }
@@ -373,6 +398,24 @@ export default function App() {
               <span className="toast-text"><b>{n.actorHandle || "Someone"}</b> {noteVerb(n)}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {showPushAsk && !newPhrase && (
+        <div className="push-ask card">
+          <div className="push-ask-icon">🔔</div>
+          <div className="push-ask-main">
+            <div className="push-ask-title">Don't miss the plot twists 👀</div>
+            <p className="push-ask-text">
+              Someone replies to your spill, wants to talk, or slides into
+              your DMs — wanna get pinged even when the tab's closed?
+            </p>
+            <div className="push-ask-actions">
+              <button className="cta" onClick={acceptPushAsk}>Yes, ping me</button>
+              <button className="act ghost" onClick={dismissPushAsk}>Nah, I'm good</button>
+            </div>
+          </div>
+          <button className="push-ask-x" onClick={dismissPushAsk} title="Not now">✕</button>
         </div>
       )}
 
