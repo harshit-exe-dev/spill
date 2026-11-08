@@ -221,16 +221,39 @@ router.get("/me/name-available", auth, async (req, res) => {
 
 // ---------- confessions ----------
 
+const REACTION_FIELDS = { heart: "hearts", fire: "fires", cry: "crys", skull: "skulls" };
+
+function reactionSummary(p, viewerId) {
+  const counts = {};
+  const mine = {};
+  for (const [kind, field] of Object.entries(REACTION_FIELDS)) {
+    const list = p[field] || [];
+    counts[kind] = list.length;
+    mine[kind] = viewerId ? list.some((u) => String(u) === String(viewerId)) : false;
+  }
+  return { counts, mine };
+}
+
+function postJson(p, viewerId) {
+  return {
+    id: p._id, authorId: p.author, handle: p.handle, color: p.color,
+    text: p.text, replyCount: p.replyCount, createdAt: p.createdAt,
+    reactions: reactionSummary(p, viewerId),
+  };
+}
+
+// feed reads fine logged-out too; a token just adds "you reacted" flags
+async function softUser(req) {
+  const token = req.get("x-token");
+  if (!token) return null;
+  return User.findOne({ token }).lean().catch(() => null);
+}
+
 router.get("/feed", async (req, res) => {
+  const viewer = await softUser(req);
   const sort = req.query.sort === "top" ? { hearts: -1, createdAt: -1 } : { createdAt: -1 };
   const posts = await Post.find({ hidden: false }).sort(sort).limit(60).lean();
-  res.json({
-    posts: posts.map((p) => ({
-      id: p._id, authorId: p.author, handle: p.handle, color: p.color,
-      text: p.text, hearts: p.hearts.length, replyCount: p.replyCount,
-      createdAt: p.createdAt,
-    })),
-  });
+  res.json({ posts: posts.map((p) => postJson(p, viewer && viewer._id)) });
 });
 
 router.post("/posts", auth, async (req, res) => {
@@ -248,13 +271,10 @@ router.get("/posts/:id", async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "post not found" });
   const post = await Post.findById(req.params.id).lean();
   if (!post || post.hidden) return res.status(404).json({ error: "post not found" });
+  const viewer = await softUser(req);
   const replies = await Reply.find({ post: post._id }).sort({ createdAt: 1 }).lean();
   res.json({
-    post: {
-      id: post._id, authorId: post.author, handle: post.handle, color: post.color,
-      text: post.text, hearts: post.hearts.length, replyCount: post.replyCount,
-      createdAt: post.createdAt,
-    },
+    post: postJson(post, viewer && viewer._id),
     replies: replies.map((r) => ({
       id: r._id, authorId: r.author, handle: r.handle, color: r.color,
       text: r.text, createdAt: r.createdAt,
@@ -279,14 +299,18 @@ router.post("/posts/:id/replies", auth, async (req, res) => {
   res.json({ id: reply._id });
 });
 
-router.post("/posts/:id/heart", auth, async (req, res) => {
+router.post("/posts/:id/react", auth, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "post not found" });
+  const kind = clean(req.body && req.body.kind);
+  const field = REACTION_FIELDS[kind];
+  if (!field) return res.status(400).json({ error: "unknown reaction" });
   const post = await Post.findById(req.params.id);
   if (!post || post.hidden) return res.status(404).json({ error: "post not found" });
-  const i = post.hearts.findIndex((h) => String(h) === String(req.user._id));
-  if (i >= 0) post.hearts.splice(i, 1); else post.hearts.push(req.user._id);
+  const list = post[field];
+  const i = list.findIndex((u) => String(u) === String(req.user._id));
+  if (i >= 0) list.splice(i, 1); else list.push(req.user._id);
   await post.save();
-  res.json({ hearts: post.hearts.length, hearted: i < 0 });
+  res.json(reactionSummary(post, req.user._id));
 });
 
 router.post("/posts/:id/report", auth, async (req, res) => {
