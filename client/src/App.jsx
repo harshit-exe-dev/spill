@@ -343,7 +343,7 @@ export default function App() {
     return (
       <>
         <div className="out-screen">
-          <div className="logo big">spill</div>
+          <div className="logo big">spill<span className="logo-splat">🫟</span></div>
           <h1><span className="grey">Logged out</span>Peace</h1>
           <p className="sub">
             Your name and your chats are exactly where you left them — if you
@@ -370,7 +370,7 @@ export default function App() {
   if (!me) {
     return (
       <div className="boot">
-        <div>spill</div>
+        <div>spill<span className="logo-splat">🫟</span></div>
         {bootWait > 0 && (
           <div className="boot-wait">
             <p>
@@ -410,7 +410,7 @@ export default function App() {
   return (
     <>
       <div className="nav">
-        <button className="logo" onClick={() => setView("feed")}>spill</button>
+        <button className="logo" onClick={() => setView("feed")}>spill<span className="logo-splat">🫟</span></button>
         <div className="nav-right">
           <button className="bell" title="Notifications" onClick={openNotes}>
             🔔{unread > 0 && <span className="badge bell-badge">{unread}</span>}
