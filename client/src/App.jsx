@@ -58,10 +58,10 @@ function Handle({ handle, color }) {
 function noteIcon(n) {
   if (n.type === "reply") return "💬";
   if (n.type === "request") return "👀";
-  if (n.type === "accepted") return "💚";
+  if (n.type === "accepted") return "🩷";
   if (n.type === "message") return "✉️";
   if (n.type === "reaction") return n.emoji || "❤️";
-  return "🔔";
+  return "🩷";
 }
 
 function noteVerb(n) {
@@ -95,7 +95,7 @@ function NotesPanel({ notes, pushState, enablePush, disablePush, goNote, close }
 
         {pushState === "off" && (
           <button className="sheet-row" onClick={enablePush}>
-            <span>🔔 Ping this device too — even with the tab closed</span><span className="sheet-arrow">→</span>
+            <span>Ping this device too — even with the tab closed</span><span className="sheet-arrow">→</span>
           </button>
         )}
         {pushState === "on" && (
@@ -413,7 +413,7 @@ export default function App() {
         <button className="logo" onClick={() => setView("feed")}>spill<img className="logo-splat" src="/splat.png" alt="" aria-hidden="true" /></button>
         <div className="nav-right">
           <button className="bell" title="Notifications" onClick={openNotes}>
-            🔔{unread > 0 && <span className="badge bell-badge">{unread}</span>}
+            <svg className="bell-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{unread > 0 && <span className="badge bell-badge">{unread}</span>}
           </button>
           <button className={`nav-link ${view === "chats" || view === "chat" ? "active" : ""}`} onClick={() => setView("chats")}>
             Chats{incoming.length > 0 && <span className="badge">{incoming.length}</span>}
