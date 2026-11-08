@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const { Server } = require("socket.io");
 const { router, threadKey, acceptedBetween, clean, hasBlockedWord } = require("./routes");
 const { makeNotify } = require("./notify");
-const { User, Message, Post } = require("./models");
+const { User, Message, Post, Reply } = require("./models");
 
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || "";
@@ -125,6 +125,11 @@ async function seed() {
   // posts carry a snapshot of the author's colour from when they were
   // written, so the team's old posts need the new colour painted on too
   await Post.updateMany({ author: team._id }, { color: "#ffb6c1" });
+  // the whole wall runs on one colour now — repaint any older accounts,
+  // posts and replies still carrying the old rainbow colours
+  await User.updateMany({ color: { $ne: "#ffb6c1" } }, { color: "#ffb6c1" });
+  await Post.updateMany({ color: { $ne: "#ffb6c1" } }, { color: "#ffb6c1" });
+  await Reply.updateMany({ color: { $ne: "#ffb6c1" } }, { color: "#ffb6c1" });
 
   const count = await Post.countDocuments();
   if (count > 0) return;
