@@ -420,7 +420,7 @@ export default function App() {
           </button>
           <button className="me-chip as-button" title="Your profile" onClick={() => setShowProfile(true)}>
             <span className="handle">
-              <span className="dot" style={{ background: me.color }} />
+              <img className="chip-avatar" src="/person.png" alt="" />
               <span className="handle-name">{me.handle}</span>
             </span>
             <span className="chip-caret">▾</span>
