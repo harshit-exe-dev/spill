@@ -343,7 +343,7 @@ export default function App() {
     return (
       <>
         <div className="out-screen">
-          <div className="logo big">spill<svg className="logo-splat" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><path d="M24 5c3 3.5 8.8 3.4 11.8 6.6 3 3.2.9 8.4 3 12 1.9 3.3 5.8 5.6 4.5 9.4-1.4 4-6.8 3.9-10.4 5.6-3.6 1.7-5.6 5.7-9.4 4.9-3.6-.8-4.3-5.4-7.1-7.8C8.5 33.6 3.4 32.5 3 28.3c-.4-4.2 4.5-6 6.3-9.5C11.2 15.2 10 9.7 13.5 7c3.2-2.5 7.4 1.4 10.5-2z"/><circle cx="42.5" cy="8.5" r="2.6"/><circle cx="5" cy="10.5" r="2.1"/><circle cx="44" cy="33" r="1.8"/><circle cx="15" cy="44.5" r="2.3"/></svg></div>
+          <div className="logo big">spill<img className="logo-splat" src="/splat.png" alt="" aria-hidden="true" /></div>
           <h1><span className="grey">Logged out</span>Peace</h1>
           <p className="sub">
             Your name and your chats are exactly where you left them — if you
@@ -370,7 +370,7 @@ export default function App() {
   if (!me) {
     return (
       <div className="boot">
-        <div>spill<svg className="logo-splat" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><path d="M24 5c3 3.5 8.8 3.4 11.8 6.6 3 3.2.9 8.4 3 12 1.9 3.3 5.8 5.6 4.5 9.4-1.4 4-6.8 3.9-10.4 5.6-3.6 1.7-5.6 5.7-9.4 4.9-3.6-.8-4.3-5.4-7.1-7.8C8.5 33.6 3.4 32.5 3 28.3c-.4-4.2 4.5-6 6.3-9.5C11.2 15.2 10 9.7 13.5 7c3.2-2.5 7.4 1.4 10.5-2z"/><circle cx="42.5" cy="8.5" r="2.6"/><circle cx="5" cy="10.5" r="2.1"/><circle cx="44" cy="33" r="1.8"/><circle cx="15" cy="44.5" r="2.3"/></svg></div>
+        <div>spill<img className="logo-splat" src="/splat.png" alt="" aria-hidden="true" /></div>
         {bootWait > 0 && (
           <div className="boot-wait">
             <p>
@@ -410,7 +410,7 @@ export default function App() {
   return (
     <>
       <div className="nav">
-        <button className="logo" onClick={() => setView("feed")}>spill<svg className="logo-splat" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><path d="M24 5c3 3.5 8.8 3.4 11.8 6.6 3 3.2.9 8.4 3 12 1.9 3.3 5.8 5.6 4.5 9.4-1.4 4-6.8 3.9-10.4 5.6-3.6 1.7-5.6 5.7-9.4 4.9-3.6-.8-4.3-5.4-7.1-7.8C8.5 33.6 3.4 32.5 3 28.3c-.4-4.2 4.5-6 6.3-9.5C11.2 15.2 10 9.7 13.5 7c3.2-2.5 7.4 1.4 10.5-2z"/><circle cx="42.5" cy="8.5" r="2.6"/><circle cx="5" cy="10.5" r="2.1"/><circle cx="44" cy="33" r="1.8"/><circle cx="15" cy="44.5" r="2.3"/></svg></button>
+        <button className="logo" onClick={() => setView("feed")}>spill<img className="logo-splat" src="/splat.png" alt="" aria-hidden="true" /></button>
         <div className="nav-right">
           <button className="bell" title="Notifications" onClick={openNotes}>
             🔔{unread > 0 && <span className="badge bell-badge">{unread}</span>}
