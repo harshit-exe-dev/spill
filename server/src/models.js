@@ -8,6 +8,10 @@ const userSchema = new mongoose.Schema({
   token: { type: String, required: true, unique: true, index: true },
   handle: { type: String, required: true, trim: true, maxlength: 30 },
   color: { type: String, required: true, default: "#ff5a1f" },
+  // The way back in. Every account gets a 5-word login phrase; only its
+  // hash lives here. Show the phrase once, and whoever holds it can
+  // recover the account on any device — no email, no phone, no name.
+  recoveryHash: { type: String, index: true },
   createdAt: { type: Date, default: Date.now },
 });
 
