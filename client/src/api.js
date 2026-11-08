@@ -38,6 +38,9 @@ export const api = {
       return d.user;
     }),
   reroll: () => call("/api/me/reroll", { method: "POST" }).then((d) => d.user),
+  setName: (name) =>
+    call("/api/me/name", { method: "POST", body: JSON.stringify({ name }) }).then((d) => d.user),
+  nameAvailable: (name) => call(`/api/me/name-available?name=${encodeURIComponent(name)}`),
   feed: (sort) => call(`/api/feed?sort=${sort}`).then((d) => d.posts),
   post: (text) => call("/api/posts", { method: "POST", body: JSON.stringify({ text }) }),
   getPost: (id) => call(`/api/posts/${id}`),
