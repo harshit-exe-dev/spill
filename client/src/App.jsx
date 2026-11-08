@@ -541,10 +541,17 @@ export default function App() {
             send={(text) => socketRef.current && socketRef.current.emit("dm:send", { toUserId: chatWith.with.id, text })}
           />
         )}
+        {view === "privacy" && <Privacy back={() => setView("feed")} />}
+        {view === "terms" && <Terms back={() => setView("feed")} />}
       </main>
 
       <footer className="foot">
-        No real names here, ever. Be kind — the person you're reading could be sitting next to you in the library.
+        <p>No real names here, ever. Be kind — the person you're reading could be sitting next to you in the library.</p>
+        <p className="foot-links">
+          <button onClick={() => setView("privacy")}>Privacy</button>
+          <span>·</span>
+          <button onClick={() => setView("terms")}>Terms</button>
+        </p>
       </footer>
     </>
   );
@@ -842,6 +849,58 @@ function Chats({ incoming, threads, act, openChat, openPost }) {
         <p className="empty">No convos yet. When a spill hits home, shoot your shot from the post.</p>
       )}
     </>
+  );
+}
+
+function Privacy({ back }) {
+  return (
+    <div className="legal">
+      <button className="back" onClick={back}>← Back to the wall</button>
+      <p className="eyebrow">Privacy</p>
+      <h1><span className="grey">We don't know</span>who you are.</h1>
+      <p className="sub">Last updated 8 November 2026. Short on purpose — there's barely anything to say, and that's the point.</p>
+
+      <h2>The short version</h2>
+      <p>Spill is anonymous by design. We never ask for your real name, email, phone number or location. There are no ads, no trackers and no analytics on this site — nothing here is watching you back.</p>
+
+      <h2>What exists on the server</h2>
+      <p>The posts, replies and private messages you write, under your made-up name. A random login token, stored in your own browser (local storage — this site sets no cookies). Your login phrase, kept only as a one-way hash, so not even we can read it. And if you turn on device notifications, the push subscription your browser gives us, so pings can find you.</p>
+
+      <h2>What's public</h2>
+      <p>Posts and replies are public to anyone with the link. Private chats are visible only to the two people in them. Anonymity is yours to keep, though — don't post anything that identifies you or anyone else.</p>
+
+      <h2>Reports</h2>
+      <p>When you report a post, we note that your account reported it. Three reports from three different readers hide a post automatically. That's the whole moderation machine.</p>
+
+      <h2>Removing your stuff</h2>
+      <p>Logging out clears this browser. To get posts or an account taken down, open an issue on our <a href="https://github.com/harshit-exe-dev/spill/issues" target="_blank" rel="noreferrer">GitHub page</a> and tell us the name on the account and what's yours.</p>
+    </div>
+  );
+}
+
+function Terms({ back }) {
+  return (
+    <div className="legal">
+      <button className="back" onClick={back}>← Back to the wall</button>
+      <p className="eyebrow">Terms</p>
+      <h1><span className="grey">Few rules.</span>That's the deal.</h1>
+      <p className="sub">Last updated 8 November 2026. Using Spill means you're good with these.</p>
+
+      <h2>Names stay fake</h2>
+      <p>Your name here is made up. Never post anyone's real name, photo, phone number, or anything else that identifies a real person — including yourself, if you want to stay anonymous.</p>
+
+      <h2>Be kind</h2>
+      <p>No hate, harassment, threats or sexual content about real people. No spam, ads or scams. Nothing illegal. If you wouldn't say it in the canteen, don't spill it here.</p>
+
+      <h2>How the wall polices itself</h2>
+      <p>Three reports from three different readers hide a post, no questions asked. Names or accounts that keep breaking the rules can be removed.</p>
+
+      <h2>Private talk</h2>
+      <p>A private chat only opens when both sides say yes — and a no is final. Don't push past one.</p>
+
+      <h2>The fine print, minus the fine print</h2>
+      <p>You're responsible for what you post. Spill is a free, student-run project offered as-is: it may nap, change or shut down, and posts could be lost. We'll be sad too.</p>
+    </div>
   );
 }
 
