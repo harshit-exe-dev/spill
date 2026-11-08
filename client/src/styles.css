@@ -195,6 +195,35 @@ h1 .grey { color: #a6a6a6; display: block; }
   color: #a6a6a6; font-size: 13px; text-align: center; line-height: 1.6;
 }
 
+/* ---------- login phrase modals ---------- */
+
+.modal-wrap {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(11, 11, 11, 0.45);
+  backdrop-filter: blur(6px);
+  display: grid; place-items: center; padding: 18px;
+}
+.modal { width: min(480px, 94vw); margin: 0; }
+.modal-title { font-size: 26px; letter-spacing: -0.03em; margin: 0 0 10px; }
+.modal .sub { margin-bottom: 18px; }
+
+.phrase {
+  background: #f6f6f4; border: 1px dashed #cfcfc8; border-radius: 18px;
+  padding: 18px; text-align: center;
+  font-size: 20px; font-weight: 800; letter-spacing: 0.01em;
+  margin-bottom: 18px; user-select: all;
+}
+
+.phrase-input {
+  width: 100%; border: 1px solid #e0e0da; border-radius: 16px;
+  padding: 14px 16px; font-family: inherit; font-size: 16px;
+  outline: none; margin-bottom: 14px; background: #fbfbfa;
+}
+.phrase-input:focus { border-color: #0b0b0b; }
+
+.cta.wide { width: 100%; padding: 14px 22px; }
+.act.center { display: block; margin: 12px auto 0; }
+
 @media (max-width: 560px) {
   .me-chip .handle { font-size: 12.5px; }
   .thread-last { max-width: 42%; }
