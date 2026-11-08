@@ -17,10 +17,7 @@ const ANIMALS = [
   "Panda", "Fox", "Owl", "Tiger", "Koala", "Wolf", "Bear", "Deer", "Otter",
   "Falcon", "Rabbit", "Heron", "Badger", "Lynx",
 ];
-const COLORS = [
-  "#ff5a1f", "#ff8fab", "#7c5cff", "#ff4d7e", "#0ea5e9", "#f59e0b",
-  "#10b981", "#ef4444", "#8b5cf6", "#ec4899",
-];
+const COLORS = ["#ffb6c1"]; // one colour now: the brand pink
 
 function randomHandle() {
   const a = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
