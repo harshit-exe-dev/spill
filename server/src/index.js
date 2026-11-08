@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const { Server } = require("socket.io");
 const { router, threadKey, acceptedBetween, clean, hasBlockedWord } = require("./routes");
+const { makeNotify } = require("./notify");
 const { User, Message, Post } = require("./models");
 
 const PORT = process.env.PORT || 4000;
@@ -34,6 +35,9 @@ const io = new Server(server, {
 app.set("notify", (userId, event, payload) => {
   io.to(`user:${userId}`).emit(event, payload);
 });
+
+// the full notification path (bell + socket toast + browser push)
+app.set("notifyUser", makeNotify(app));
 
 // who's here right now — the little green-dot number in the hero
 const onlineUsers = new Map(); // userId -> socket count
@@ -85,6 +89,12 @@ io.on("connection", (socket) => {
       };
       io.to(`user:${other._id}`).emit("dm:new", payload);
       socket.emit("dm:new", payload); // echo so the sender sees it land
+      app.get("notifyUser")(other._id, {
+        type: "message", actorId: me._id,
+        actorHandle: me.handle, actorColor: me.color,
+        withUser: me._id,
+        text: body.length > 120 ? body.slice(0, 117) + "…" : body,
+      }).catch(() => {});
     } catch (err) {
       // dropped quietly — the sender can retry; nothing half-saved
     }
