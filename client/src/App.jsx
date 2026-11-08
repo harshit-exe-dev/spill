@@ -33,6 +33,7 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [newPhrase, setNewPhrase] = useState(null); // shown exactly once
   const [showLogin, setShowLogin] = useState(false);
+  const [showName, setShowName] = useState(false);
   const socketRef = useRef(null);
 
   const flash = (msg) => {
@@ -100,6 +101,9 @@ export default function App() {
           </button>
           <span className="me-chip" title="This is the only name anyone sees">
             <Handle handle={me.handle} color={me.color} />
+            <button className="reroll" title="Write my own name" onClick={() => setShowName(true)}>
+              ✎
+            </button>
             <button className="reroll" title="Re-roll my name"
               onClick={() => api.reroll().then((u) => { setMe(u); flash(`You are now ${u.handle}`); })}>
               ↻
@@ -124,6 +128,15 @@ export default function App() {
             <button className="cta wide" onClick={() => setNewPhrase(null)}>I saved it</button>
           </div>
         </div>
+      )}
+
+      {showName && (
+        <NameModal
+          me={me}
+          close={() => setShowName(false)}
+          done={(u) => { setMe(u); setShowName(false); flash(`You are now ${u.handle}`); }}
+          random={() => api.reroll().then((u) => { setMe(u); setShowName(false); flash(`You are now ${u.handle}`); })}
+        />
       )}
 
       {showLogin && (
@@ -168,6 +181,63 @@ export default function App() {
         No real names here, ever. Be kind — the person you're reading could be sitting next to you in the library.
       </footer>
     </>
+  );
+}
+
+function NameModal({ me, close, done, random }) {
+  const [name, setName] = useState(me.handle);
+  const [status, setStatus] = useState(""); // "", "checking", "free", or an error line
+  const [busy, setBusy] = useState(false);
+  const timer = useRef(null);
+
+  // check as they type, so "already taken" shows up before they save
+  const check = (value) => {
+    setName(value);
+    clearTimeout(timer.current);
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === me.handle.toLowerCase()) { setStatus(""); return; }
+    setStatus("checking");
+    timer.current = setTimeout(() => {
+      api.nameAvailable(trimmed)
+        .then((d) => setStatus(d.available ? "free" : d.reason))
+        .catch(() => setStatus(""));
+    }, 450);
+  };
+
+  const save = () => {
+    if (busy || !name.trim()) return;
+    setBusy(true);
+    api.setName(name.trim())
+      .then(done)
+      .catch((e) => { setStatus(e.message); setBusy(false); });
+  };
+
+  const taken = status && status !== "checking" && status !== "free";
+
+  return (
+    <div className="modal-wrap" onClick={close}>
+      <div className="modal card" onClick={(e) => e.stopPropagation()}>
+        <p className="eyebrow small">Your name here</p>
+        <h2 className="modal-title">Write your own name.</h2>
+        <p className="sub">Anything you like — except someone else's real name. 2–20 characters: letters, numbers, spaces, underscore.</p>
+        <input
+          className="phrase-input"
+          value={name}
+          onChange={(e) => check(e.target.value.slice(0, 24))}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          placeholder="e.g. Night Owl"
+          autoFocus
+        />
+        {status === "checking" && <p className="name-status">Checking…</p>}
+        {status === "free" && <p className="name-status ok">That one's free — it's yours if you save it.</p>}
+        {taken && <p className="name-status bad">{status}</p>}
+        <button className="cta wide" onClick={save} disabled={busy || !name.trim() || taken}>
+          Save my name
+        </button>
+        <button className="act ghost center" onClick={random}>Surprise me instead (random name)</button>
+        <button className="act ghost center" onClick={close}>Cancel</button>
+      </div>
+    </div>
   );
 }
 
@@ -224,8 +294,8 @@ function Feed({ me, posts, sort, setSort, reload, openPost, talkPrivately, flash
       <p className="eyebrow">The campus wall · no names, no judgement</p>
       <h1><span className="grey">Same campus.</span>Everything unsaid.</h1>
       <p className="sub">
-        Confess it, rant it, ask it. You're a random name here —{" "}
-        <b>{me.handle}</b> — and so is everyone else.
+        Confess it, rant it, ask it. Here you're <b>{me.handle}</b> — a name
+        you picked or the dice gave you — and that's all anyone knows.
       </p>
 
       <div className="compose card">
