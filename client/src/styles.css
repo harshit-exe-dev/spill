@@ -53,7 +53,9 @@ button { font-family: inherit; }
 .logo {
   background: none; border: none; cursor: pointer;
   font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: #0b0b0b;
+  white-space: nowrap; flex: none;
 }
+.logo-splat { font-size: 0.72em; margin-left: 3px; }
 
 .nav-right { display: flex; align-items: center; gap: 10px; }
 
