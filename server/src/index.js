@@ -111,8 +111,8 @@ io.on("connection", (socket) => {
 });
 
 async function seed() {
-  const count = await Post.countDocuments();
-  if (count > 0) return;
+  // the team account itself is ensured on every boot, not just the
+  // first: its colour is brand, and brand changes should reach it
   let team = await User.findOne({ handle: "TeamSpill" });
   if (!team) {
     team = await User.create({
@@ -125,6 +125,9 @@ async function seed() {
   // posts carry a snapshot of the author's colour from when they were
   // written, so the team's old posts need the new colour painted on too
   await Post.updateMany({ author: team._id }, { color: "#ffb6c1" });
+
+  const count = await Post.countDocuments();
+  if (count > 0) return;
   await Post.create([
     {
       author: team._id, handle: team.handle, color: team.color,
