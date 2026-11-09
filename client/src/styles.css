@@ -211,11 +211,12 @@ h1 .grey { color: #8a8a8a; display: block; }
 }
 .foot p { margin: 0 0 6px; }
 .foot-links { display: flex; justify-content: center; gap: 8px; align-items: center; }
-.foot-links button {
+.foot-links button, .foot-links a {
   background: none; border: none; cursor: pointer; padding: 2px 4px;
   color: #555555; font-size: 13px; font-weight: 600; font-family: inherit;
+  text-decoration: none;
 }
-.foot-links button:hover { color: #0b0b0b; text-decoration: underline; }
+.foot-links button:hover, .foot-links a:hover { color: #0b0b0b; text-decoration: underline; }
 
 /* ---------- privacy + terms ---------- */
 
