@@ -39,6 +39,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: (origin, cb) => cb(null, originAllowed(origin)) },
 });
+app.set("io", io); // routes broadcast new posts to everyone through this
 
 // one room per person: user:<id> — that's where requests and DMs land
 app.set("notify", (userId, event, payload) => {
