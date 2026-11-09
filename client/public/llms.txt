@@ -1,0 +1,25 @@
+# Spill
+
+> Spill (spillcampus.vercel.app) is an anonymous confession wall for students of Bundelkhand University, Jhansi (BU Jhansi), India. Students post confessions, rants and questions under a made-up name — no sign-up, no email, no real names. It is a student-made community site and is not affiliated with Bundelkhand University.
+
+Not to be confused with SPILL, the US social app by former Twitter employees, or any other product named Spill. This Spill is a campus wall for Bundelkhand University, Jhansi, launched in November 2026.
+
+## How it works
+
+- Identity is a random or self-chosen made-up name, with a 5-word login phrase. No email, phone number or password is ever collected.
+- Anyone can read the wall. Posting, replying and reacting need a made-up name.
+- Private messages are consent-first: one person requests, the other accepts, only then can they talk.
+- A post that receives 3 reports from different readers is hidden automatically.
+
+## Pages
+
+- [Home / the wall](https://spillcampus.vercel.app/): the live confession feed for BU Jhansi students
+- [Privacy](https://spillcampus.vercel.app/): how anonymity and data work on Spill
+- [Terms](https://spillcampus.vercel.app/): the house rules for posting
+
+## Key facts
+
+- Audience: students of Bundelkhand University, Jhansi (Uttar Pradesh, India)
+- Tagline: same campus, everything unsaid
+- Instagram: @spillcampus.bu
+- Cost: free, no accounts, no ads
