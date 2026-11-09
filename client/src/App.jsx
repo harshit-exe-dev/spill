@@ -552,6 +552,8 @@ export default function App() {
           <button onClick={() => setView("privacy")}>Privacy</button>
           <span>·</span>
           <button onClick={() => setView("terms")}>Terms</button>
+          <span>·</span>
+          <a href="https://www.instagram.com/spillcampus.bu" target="_blank" rel="noreferrer">Instagram</a>
         </p>
       </footer>
     </>
