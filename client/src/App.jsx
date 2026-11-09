@@ -155,6 +155,7 @@ export default function App() {
   const [bootWait, setBootWait] = useState(0); // failed boot attempts so far
   const bootTriesRef = useRef(0);
   const socketRef = useRef(null);
+  const sortRef = useRef("new"); // the socket listener reads the live sort from here
   const openChatRef = useRef(null); // user id of the chat on screen, if any
 
   const flash = (msg) => {
@@ -204,6 +205,19 @@ export default function App() {
       socketRef.current = socket;
       socket.on("connect", () => socket.emit("identify", getToken()));
       socket.on("presence", (d) => setOnline(d.online || 0));
+      socket.on("post:new", (post) => {
+        // somebody just spilled — land it on the wall right away.
+        // skip it if it's already here (your own post beats the echo sometimes)
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === post.id)) return prev;
+          if (sortRef.current !== "top") return [post, ...prev];
+          // top is hearts first, then newest — a fresh post has no hearts yet,
+          // so it goes just ahead of the other heart-less posts
+          const at = prev.findIndex((p) => (p.reactions.counts.heart || 0) === 0);
+          if (at === -1) return [...prev, post];
+          return [...prev.slice(0, at), post, ...prev.slice(at)];
+        });
+      });
       socket.on("request:new", () => loadIncoming());
       socket.on("request:accepted", () => loadThreads());
       socket.on("notification:new", (note) => {
@@ -255,6 +269,7 @@ export default function App() {
     boot();
   };
 
+  useEffect(() => { sortRef.current = sort; }, [sort]);
   useEffect(() => { if (me) loadFeed(); }, [me, sort]);
   useEffect(() => { if (me && view === "chats") { loadIncoming(); loadThreads(); } }, [me, view]);
   useEffect(() => {
