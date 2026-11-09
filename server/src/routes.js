@@ -295,6 +295,10 @@ router.post("/posts", auth, writeLimiter, async (req, res) => {
   const post = await Post.create({
     author: req.user._id, handle: req.user.handle, color: req.user.color, text,
   });
+  // the wall is live: everyone looking at it sees the new post land,
+  // no refresh needed
+  const io = req.app.get("io");
+  if (io) io.emit("post:new", postJson(post, null));
   res.json({ id: post._id });
 });
 
