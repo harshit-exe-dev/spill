@@ -46,6 +46,33 @@ function hasBlockedWord(text) {
   return BLOCKED_WORDS.some((w) => low.includes(w));
 }
 
+// Names get a wider net than posts: a handle follows its owner everywhere,
+// so the gaalis and slurs the post filter lets slide still can't become
+// someone's name. Matching runs on a squeezed copy — lowercased, leetspeak
+// folded back to letters, everything else stripped — so spacing a word
+// out or swapping in digits doesn't sneak it through. Bare "shit" stays
+// off the list on purpose: it would also catch Shital and Kshitij.
+const BLOCKED_NAME_WORDS = [
+  "fuck", "bullshit", "shitty", "bitch", "bastard", "whore", "slut",
+  "dick", "cock", "pussy", "cunt", "asshole", "nigger", "nigga", "faggot",
+  "porn", "boobs", "penis", "vagina",
+  "choot", "chutiya", "bhosdi", "madarchod", "behenchod", "bhenchod",
+  "randi", "gaand", "lund", "lauda", "kamina", "haramzada",
+];
+
+function squeezed(text) {
+  const leet = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s" };
+  return text
+    .toLowerCase()
+    .replace(/[0-9@$]/g, (c) => leet[c] || "")
+    .replace(/[^a-z]/g, "");
+}
+
+function hasBlockedName(name) {
+  const flat = squeezed(name);
+  return BLOCKED_NAME_WORDS.some((w) => flat.includes(w));
+}
+
 // ---------- auth: the device token is the whole login ----------
 
 async function auth(req, res, next) {
@@ -206,6 +233,7 @@ function nameProblem(name) {
   const squashed = name.toLowerCase().replace(/[\s_]+/g, "");
   if (RESERVED_NAMES.includes(squashed)) return "that name is reserved";
   if (hasBlockedWord(name)) return "that name can't be used here";
+  if (hasBlockedName(name)) return "that name can't be used here";
   return null;
 }
 
@@ -565,6 +593,67 @@ router.post("/push/unsubscribe", auth, async (req, res) => {
     await PushSubscription.deleteOne({ user: req.user._id, endpoint });
   }
   res.json({ ok: true });
+});
+
+// ---------- TEMPORARY admin purge (one cleanup, 19 Nov 2026) ----------
+// Deletes one account and everything attached to it: their spills, their
+// replies, replies on their spills, their reactions, talk requests,
+// messages, notifications. Guarded by a one-off token in ADMIN_PURGE_TOKEN;
+// with that env var unset the route answers 404 like it was never here.
+// This whole block comes out again once the cleanup is done.
+router.post("/admin/purge-user", async (req, res) => {
+  const expected = process.env.ADMIN_PURGE_TOKEN || "";
+  const given = req.get("x-admin-token") || "";
+  if (
+    !expected ||
+    given.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))
+  ) {
+    return res.status(404).json({ error: "not found" });
+  }
+  const handle = clean(req.body && req.body.handle);
+  if (!handle) return res.status(400).json({ error: "handle required" });
+  const user = await User.findOne({
+    $or: [
+      { handleNorm: handle.toLowerCase() },
+      { handle: new RegExp(`^${handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    ],
+  });
+  if (!user) return res.status(404).json({ error: "no such user" });
+  const uid = user._id;
+  const myPosts = await Post.find({ author: uid }).select("_id").lean();
+  const myPostIds = myPosts.map((p) => p._id);
+  // replies I left on other people's spills: keep their reply counts honest
+  const others = await Reply.aggregate([
+    { $match: { author: uid, post: { $nin: myPostIds } } },
+    { $group: { _id: "$post", n: { $sum: 1 } } },
+  ]);
+  for (const row of others) {
+    await Post.updateOne({ _id: row._id }, { $inc: { replyCount: -row.n } });
+  }
+  const replies = await Reply.deleteMany({
+    $or: [{ author: uid }, { post: { $in: myPostIds } }],
+  });
+  const posts = await Post.deleteMany({ _id: { $in: myPostIds } });
+  await Post.updateMany(
+    {},
+    { $pull: { hearts: uid, fires: uid, crys: uid, skulls: uid, reportedBy: uid } }
+  );
+  const messages = await Message.deleteMany({ thread: new RegExp(String(uid)) });
+  const requests = await ChatRequest.deleteMany({ $or: [{ from: uid }, { to: uid }] });
+  const notifications = await Notification.deleteMany({
+    $or: [{ user: uid }, { withUser: uid }],
+  });
+  await PushSubscription.deleteMany({ user: uid });
+  await User.deleteOne({ _id: uid });
+  res.json({
+    purged: user.handle,
+    posts: posts.deletedCount,
+    replies: replies.deletedCount,
+    messages: messages.deletedCount,
+    requests: requests.deletedCount,
+    notifications: notifications.deletedCount,
+  });
 });
 
 module.exports = { router, threadKey, acceptedBetween, clean, hasBlockedWord };
